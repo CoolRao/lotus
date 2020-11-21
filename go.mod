@@ -155,3 +155,13 @@ replace github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
 replace github.com/filecoin-project/test-vectors => ./extern/test-vectors
 
 replace github.com/supranational/blst => ./extern/blst
+
+replace golang.org/x/time => github.com/golang/time v0.0.0-20200630173020-3af7569d3a1e
+
+replace golang.org/x/exp => github.com/golang/exp v0.0.0-20201008143054-e3b2a7f2fdc7
+
+replace golang.org/x/mod => github.com/golang/mod v0.3.0
+
+replace golang.org/x/genproto => github.com/google/go-genproto v0.0.0-20201119123407-9b1e624d6bc4
+
+replace golang.org/x/tools => github.com/golang/tools v0.0.0-20201121010211-780cb80bd7fb
