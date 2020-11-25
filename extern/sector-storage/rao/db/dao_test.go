@@ -7,7 +7,7 @@ import (
 
 func TestDaoTotal(t *testing.T) {
 	dao := NewDaoWithTable("sectors")
-	total, err := dao.Total("select count(*) from sectors")
+	total, err := dao.Total("select count(*) form sectors")
 	if err != nil {
 		fmt.Println(err.Error())
 		return

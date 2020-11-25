@@ -22,7 +22,7 @@ func TestSql(t *testing.T){
 
 func TestSectorDao_UpdateInfo(t *testing.T) {
 	dao := NewSectorDao()
-	info, err := dao.UpdateInfo("102", "5555")
+	info, err := dao.UpdateInfo("1002", "5555")
 	fmt.Println(info,err)
 }
 func TestSectorDao_List(t *testing.T) {
