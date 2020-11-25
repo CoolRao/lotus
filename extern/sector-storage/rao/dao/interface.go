@@ -1,6 +1,6 @@
 package dao
 
-import "github.com/filecoin-project/lotus/extern/sector-storage/xjrw/model"
+import "github.com/filecoin-project/lotus/extern/sector-storage/rao/model"
 
 type ISectorDao interface {
 	SectorInfo(sectorId string) (*model.Sector, error)

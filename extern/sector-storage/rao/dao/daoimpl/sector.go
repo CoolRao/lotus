@@ -3,9 +3,9 @@ package daoimpl
 import (
 	"database/sql"
 	"fmt"
-	"github.com/filecoin-project/lotus/extern/sector-storage/xjrw/dao"
-	"github.com/filecoin-project/lotus/extern/sector-storage/xjrw/db"
-	"github.com/filecoin-project/lotus/extern/sector-storage/xjrw/model"
+	"github.com/filecoin-project/lotus/extern/sector-storage/rao/dao"
+	"github.com/filecoin-project/lotus/extern/sector-storage/rao/db"
+	"github.com/filecoin-project/lotus/extern/sector-storage/rao/model"
 )
 
 type SectorDao struct {

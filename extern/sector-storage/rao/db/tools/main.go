@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/filecoin-project/lotus/extern/sector-storage/xjrw/db"
+	"github.com/filecoin-project/lotus/extern/sector-storage/rao/db"
 	"log"
 )
 
