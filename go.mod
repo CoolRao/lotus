@@ -110,6 +110,7 @@ require (
 	github.com/libp2p/go-libp2p-yamux v0.4.1
 	github.com/libp2p/go-maddr-filter v0.1.0
 	github.com/mattn/go-colorable v0.1.6 // indirect
+	github.com/mattn/go-sqlite3 v1.14.5
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/multiformats/go-base32 v0.0.3
@@ -158,10 +159,10 @@ replace github.com/supranational/blst => ./extern/blst
 
 replace golang.org/x/time => github.com/golang/time v0.0.0-20200630173020-3af7569d3a1e
 
-replace golang.org/x/exp => github.com/golang/exp v0.0.0-20201008143054-e3b2a7f2fdc7
-
 replace golang.org/x/mod => github.com/golang/mod v0.3.0
 
 replace golang.org/x/genproto => github.com/google/go-genproto v0.0.0-20201119123407-9b1e624d6bc4
+
+replace golang.org/x/exp => github.com/golang/exp v0.0.0-20201008143054-e3b2a7f2fdc7
 
 replace golang.org/x/tools => github.com/golang/tools v0.0.0-20201121010211-780cb80bd7fb

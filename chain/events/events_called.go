@@ -153,7 +153,7 @@ func (e *hcEvents) processHeadChangeEvent(rev, app []*types.TipSet) error {
 			e.applyTimeouts(ts)
 		}
 
-		// Update the latest known tipset
+		// UpdateOne the latest known tipset
 		e.lastTs = ts
 	}
 

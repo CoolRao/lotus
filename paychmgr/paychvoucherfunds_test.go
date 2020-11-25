@@ -88,7 +88,7 @@ func TestPaychAddVoucherAfterAddFunds(t *testing.T) {
 	// Trigger add funds confirmation
 	mock.receiveMsgResponse(addFundsMsgCid, types.MessageReceipt{ExitCode: 0})
 
-	// Update actor test case balance to reflect added funds
+	// UpdateOne actor test case balance to reflect added funds
 	act.Balance = types.BigAdd(createAmt, excessAmt)
 
 	// Wait for add funds confirmation to be processed by manager

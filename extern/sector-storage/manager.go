@@ -59,13 +59,13 @@ type WorkerID uuid.UUID // worker session UUID
 var ClosedWorkerID = uuid.UUID{}
 
 type Manager struct {
-	ls         stores.LocalStorage
-	storage    *stores.Remote
+	ls         stores.LocalStorage // 本地存储对象？
+	storage    *stores.Remote      // 远端存储？
 	localStore *stores.Local
-	remoteHnd  *stores.FetchHandler
-	index      stores.SectorIndex
+	remoteHnd  *stores.FetchHandler // miner和worker之间拉去文件 http Handler
+	index      stores.SectorIndex   // 扇区索引,新添加的扇区自增
 
-	sched *scheduler
+	sched *scheduler                // 扇区调度器
 
 	storage.Prover
 
@@ -165,6 +165,7 @@ func New(ctx context.Context, ls stores.LocalStorage, si stores.SectorIndex, sc 
 	return m, nil
 }
 
+// 添加一个存储路径
 func (m *Manager) AddLocalStorage(ctx context.Context, path string) error {
 	path, err := homedir.Expand(path)
 	if err != nil {

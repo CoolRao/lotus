@@ -23,12 +23,14 @@ type schedWorker struct {
 }
 
 // context only used for startup
+// 一个新worker连接过来执行的操作
 func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
+	// 获取信息
 	info, err := w.Info(ctx)
 	if err != nil {
 		return xerrors.Errorf("getting worker info: %w", err)
 	}
-
+	// 检查 sessID
 	sessID, err := w.Session(ctx)
 	if err != nil {
 		return xerrors.Errorf("getting worker session: %w", err)
@@ -41,7 +43,7 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 		workerRpc: w,
 		info:      info,
 
-		preparing: &activeResources{},
+		preparing: &activeResources{}, // 做任务的前置准备
 		active:    &activeResources{},
 		enabled:   true,
 
@@ -69,7 +71,7 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 
 		wid: wid,
 
-		heartbeatTimer:   time.NewTicker(stores.HeartbeatInterval),
+		heartbeatTimer:   time.NewTicker(stores.HeartbeatInterval), // 10 秒定时
 		scheduledWindows: make(chan *schedWindow, SchedWindows),
 		taskDone:         make(chan struct{}, 1),
 
@@ -95,7 +97,7 @@ func (sw *schedWorker) handleWorker() {
 		if err := sw.disable(ctx); err != nil {
 			log.Warnw("failed to disable worker", "worker", sw.wid, "error", err)
 		}
-
+		// 删除 worker
 		sched.workersLk.Lock()
 		delete(sched.workers, sw.wid)
 		sched.workersLk.Unlock()
@@ -110,6 +112,7 @@ func (sw *schedWorker) handleWorker() {
 			sched.workersLk.Unlock()
 
 			// ask for more windows if we need them (non-blocking)
+			//发送两个 window 到调度器的队列中
 			if enabled {
 				if !sw.requestWindows() {
 					return // graceful shutdown
