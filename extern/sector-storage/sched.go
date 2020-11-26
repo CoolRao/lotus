@@ -56,13 +56,13 @@ type scheduler struct {
 	workers   map[WorkerID]*workerHandle // 连接的 worker列表
 
 	schedule       chan *workerRequest      // 新的任务请求
-	windowRequests chan *schedWindowRequest // 新的队列请求
-	workerChange   chan struct{}            // worker added / changed/freed resources
-	workerDisable  chan workerDisableReq
+	windowRequests chan *schedWindowRequest // 每个worker 会发送window过来
+	workerChange   chan struct{}            // 当worker有任务结束时，接受消息通道
+	workerDisable  chan workerDisableReq    // 当 worker退出时通知，会把分配给该的任务重新加入到队列中
 
 	// owned by the sh.runSched goroutine
 	schedQueue  *requestQueue         // 任务队列
-	openWindows []*schedWindowRequest // 适合做任务队列的窗口，一个worker默认发送两个 window
+	openWindows []*schedWindowRequest // worker 发送过来的 window ,一个 worker一般发两个
 
 	workTracker *workTracker
 
@@ -74,17 +74,17 @@ type scheduler struct {
 }
 
 type workerHandle struct {
-	workerRpc Worker            // worker Rpc对象，可以操作worker相关操作
+	workerRpc Worker // worker Rpc对象
 
-	info storiface.WorkerInfo   // worker cpu,内存等相关信息
+	info storiface.WorkerInfo // worker cpu,内存等相关信息
 
-	preparing *activeResources //  任务需要准备的资源?
-	active    *activeResources //  任务执行需要的资源?
+	preparing *activeResources // 任务前置需要做的工作?
+	active    *activeResources // 任务执行需要的资源?
 
 	lk sync.Mutex
 
 	wndLk         sync.Mutex
-	activeWindows []*schedWindow
+	activeWindows []*schedWindow // 该 worker的任务集合
 
 	enabled bool
 
@@ -95,14 +95,14 @@ type workerHandle struct {
 }
 
 type schedWindowRequest struct {
-	worker WorkerID
+	worker WorkerID // worker id
 
-	done chan *schedWindow
+	done chan *schedWindow // worker 资源和将要执行任务的封装
 }
 
 type schedWindow struct {
-	allocated activeResources
-	todo      []*workerRequest
+	allocated activeResources  //已经分配的资源
+	todo      []*workerRequest // 执行任务的队列
 }
 
 type workerDisableReq struct {
@@ -123,11 +123,11 @@ type activeResources struct {
 type workerRequest struct {
 	sector   storage.SectorRef
 	taskType sealtasks.TaskType
-	priority int // larger values more important
-	sel      WorkerSelector
+	priority int            // larger values more important
+	sel      WorkerSelector // 排序时候的选择器
 
-	prepare WorkerAction
-	work    WorkerAction
+	prepare WorkerAction // 一个任务前置需要执行的操作
+	work    WorkerAction // 具体执行任务的操作
 
 	start time.Time
 
@@ -360,18 +360,19 @@ func (sh *scheduler) trySched() {
 	defer sh.workersLk.RUnlock()
 	// 缓存
 	windows := make([]schedWindow, len(sh.openWindows))
-	// 任务队列
+	// 这个队列的作用是记住 适合一个任务的 windows集合 // key : 任务id, value: window集合id
 	acceptableWindows := make([][]int, sh.schedQueue.Len())
 
 	log.Debugf("SCHED %d queued; %d open windows", sh.schedQueue.Len(), len(windows))
 
-	// 没有窗口
+	// 没有窗口，那就没有 worker 连接？
 	if len(sh.openWindows) == 0 {
 		// nothing to schedule on
 		return
 	}
 
 	// Step 1
+	// window个数
 	concurrency := len(sh.openWindows)
 	throttle := make(chan struct{}, concurrency)
 
@@ -387,6 +388,7 @@ func (sh *scheduler) trySched() {
 				<-throttle
 			}()
 
+			// 取出一个任务
 			task := (*sh.schedQueue)[sqi]
 			// 任务需要的资源
 			needRes := ResourceTable[task.taskType][task.sector.ProofType]
@@ -409,7 +411,7 @@ func (sh *scheduler) trySched() {
 					continue
 				}
 
-				//  校验资源使用是否足够
+				//  任务资源与worker资源比对，查看资源是否足够
 				// TODO: allow bigger windows
 				if !windows[wnd].allocated.canHandleRequest(needRes, windowRequest.worker, "schedAcceptable", worker.info.Resources) {
 					continue
@@ -417,7 +419,7 @@ func (sh *scheduler) trySched() {
 
 				rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
 
-				//  判断 worker 是否能接受任务
+				//  判断 worker 是否能接受任务,比如worker中配置只做特定任务
 				ok, err := task.sel.Ok(rpcCtx, task.taskType, task.sector.ProofType, worker)
 				cancel()
 				if err != nil {
@@ -428,7 +430,7 @@ func (sh *scheduler) trySched() {
 				if !ok {
 					continue
 				}
-				//  这个任务 index 跟 openWindows 对应起来, 找到可以执行这个任务的 windows集合
+				//  这个任务 index 跟 openWindows index 对应起来, 找到可以执行这个任务的 windows集合   找到可以执行这个任务的所有集合
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
 
@@ -437,13 +439,13 @@ func (sh *scheduler) trySched() {
 				return
 			}
 
-			// 随机排序 ？
+			//  打乱适合做这个任务 window集合
 			// Pick best worker (shuffle in case some workers are equally as good)
 			rand.Shuffle(len(acceptableWindows[sqi]), func(i, j int) {
 				acceptableWindows[sqi][i], acceptableWindows[sqi][j] = acceptableWindows[sqi][j], acceptableWindows[sqi][i] // nolint:scopelint
 			})
 
-			// 对队列中的内容根据选择器进行排序
+			// 对适合做这个任务的 window 进行排序 ，
 			sort.SliceStable(acceptableWindows[sqi], func(i, j int) bool {
 				wii := sh.openWindows[acceptableWindows[sqi][i]].worker // nolint:scopelint
 				wji := sh.openWindows[acceptableWindows[sqi][j]].worker // nolint:scopelint
@@ -482,8 +484,8 @@ func (sh *scheduler) trySched() {
 		needRes := ResourceTable[task.taskType][task.sector.ProofType]
 
 		selectedWindow := -1
-		// 从合适执行该任务 windows集合选择第一个 window
-		for _, wnd := range acceptableWindows[task.indexHeap] {
+		// 从合适执行该任务 windows集合选择第一个 window, 这个集合已经排序过额，直接取第一个
+		for _, wnd := range acceptableWindows[task.indexHeap] {  // task.indexHeap 记住了 request队列中的id
 			wid := sh.openWindows[wnd].worker
 			wr := sh.workers[wid].info.Resources
 
@@ -536,7 +538,7 @@ func (sh *scheduler) trySched() {
 
 		window := window // copy
 		select {
-		case sh.openWindows[wnd].done <- &window:
+		case sh.openWindows[wnd].done <- &window: // 发送到 worker 接收那边 ，将这个 window 添加到 worker的 activeWindow中
 		default:
 			log.Error("expected sh.openWindows[wnd].done to be buffered")
 		}
@@ -546,7 +548,7 @@ func (sh *scheduler) trySched() {
 	// 将已经分配的 window 剔除
 	newOpenWindows := make([]*schedWindowRequest, 0, len(sh.openWindows)-len(scheduledWindows))
 	for wnd, window := range sh.openWindows {
-		if _, scheduled := scheduledWindows[wnd]; scheduled {
+		if _, scheduled := scheduledWindows[wnd]; scheduled { // 找到没有分配的
 			// keep unscheduled windows open
 			continue
 		}

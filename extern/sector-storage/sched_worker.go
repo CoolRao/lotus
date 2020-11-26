@@ -44,7 +44,7 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 		info:      info,
 
 		preparing: &activeResources{}, // 做任务的前置准备
-		active:    &activeResources{},
+		active:    &activeResources{}, // 任务需要的资源
 		enabled:   true,
 
 		closingMgr: make(chan struct{}),
@@ -112,7 +112,7 @@ func (sw *schedWorker) handleWorker() {
 			sched.workersLk.Unlock()
 
 			// ask for more windows if we need them (non-blocking)
-			//发送两个 window 到调度器的队列中
+			//发送两个 预订window 到调度器的队列中,
 			if enabled {
 				if !sw.requestWindows() {
 					return // graceful shutdown
@@ -142,6 +142,7 @@ func (sw *schedWorker) handleWorker() {
 
 			// wait for more tasks to be assigned by the main scheduler or for the worker
 			// to finish precessing a task
+			// 等该主调度器把 合适的window 发到 worker这边来
 			update, pokeSched, ok := sw.waitForUpdates()
 			if !ok {
 				return
@@ -149,7 +150,7 @@ func (sw *schedWorker) handleWorker() {
 			if pokeSched {
 				// a task has finished preparing, which can mean that we've freed some space on some worker
 				select {
-				case sched.workerChange <- struct{}{}:
+				case sched.workerChange <- struct{}{}: // 有任务结束的消息，发送给主调度器，重新更新调度
 				default: // workerChange is buffered, and scheduling is global, so it's ok if we don't send here
 				}
 			}
@@ -177,7 +178,7 @@ func (sw *schedWorker) disable(ctx context.Context) error {
 
 	// request cleanup in the main scheduler goroutine
 	select {
-	case sw.sched.workerDisable <- workerDisableReq{
+	case sw.sched.workerDisable <- workerDisableReq{  // 发送给主调度器
 		activeWindows: sw.worker.activeWindows,
 		wid:           sw.wid,
 		done: func() {
@@ -198,7 +199,7 @@ func (sw *schedWorker) disable(ctx context.Context) error {
 	case <-sw.sched.closing:
 		return nil
 	}
-
+	// 置空
 	sw.worker.activeWindows = sw.worker.activeWindows[:0]
 	sw.windowsRequested = 0
 	return nil
@@ -254,13 +255,13 @@ func (sw *schedWorker) checkSession(ctx context.Context) bool {
 func (sw *schedWorker) requestWindows() bool {
 	for ; sw.windowsRequested < SchedWindows; sw.windowsRequested++ {
 		select {
-		case sw.sched.windowRequests <- &schedWindowRequest{
+		case sw.sched.windowRequests <- &schedWindowRequest{  // 发送到主调度器中队列中 ,分配玩之后通过，done 传给 worker的队列中
 			worker: sw.wid,
 			done:   sw.scheduledWindows,
 		}:
-		case <-sw.sched.closing:
+		case <-sw.sched.closing:       // 调度器关闭信息
 			return false
-		case <-sw.worker.closingMgr:
+		case <-sw.worker.closingMgr:   // worker关闭信息
 			return false
 		}
 	}
@@ -276,7 +277,7 @@ func (sw *schedWorker) waitForUpdates() (update bool, sched bool, ok bool) {
 		sw.worker.activeWindows = append(sw.worker.activeWindows, w)
 		sw.worker.wndLk.Unlock()
 		return true, false, true
-	case <-sw.taskDone:
+	case <-sw.taskDone: // 有任务结束的消息
 		log.Debugw("task done", "workerid", sw.wid)
 		return true, true, true
 	case <-sw.sched.closing:
@@ -289,24 +290,30 @@ func (sw *schedWorker) waitForUpdates() (update bool, sched bool, ok bool) {
 func (sw *schedWorker) workerCompactWindows() {
 	worker := sw.worker
 
-	// move tasks from older windows to newer windows if older windows
+	// move tasks form older windows to newer windows if older windows
 	// still can fit them
 	if len(worker.activeWindows) > 1 {
 		for wi, window := range worker.activeWindows[1:] {
-			lower := worker.activeWindows[wi]
-			var moved []int
 
+			// 获取一个 window
+			lower := worker.activeWindows[wi]
+			var moved []int // 记录任务id
+
+			// 这个window中的任务
 			for ti, todo := range window.todo {
+
+				// 这个任务需要的资源
 				needRes := ResourceTable[todo.taskType][todo.sector.ProofType]
+				// 这个窗口是否能做这个任务
 				if !lower.allocated.canHandleRequest(needRes, sw.wid, "compactWindows", worker.info.Resources) {
 					continue
 				}
-
 				moved = append(moved, ti)
 				lower.todo = append(lower.todo, todo)
 				lower.allocated.add(worker.info.Resources, needRes)
 				window.allocated.free(worker.info.Resources, needRes)
 			}
+
 
 			if len(moved) > 0 {
 				newTodo := make([]*workerRequest, 0, len(window.todo)-len(moved))
@@ -354,6 +361,7 @@ assignLoop:
 			worker.lk.Lock()
 			for t, todo := range firstWindow.todo {
 				needRes := ResourceTable[todo.taskType][todo.sector.ProofType]
+				// 判断
 				if worker.preparing.canHandleRequest(needRes, sw.wid, "startPreparing", worker.info.Resources) {
 					tidx = t
 					break
@@ -365,9 +373,11 @@ assignLoop:
 				break assignLoop
 			}
 
+			// 找到任务
 			todo := firstWindow.todo[tidx]
 
 			log.Debugf("assign worker sector %d", todo.sector.ID.Number)
+			// 做任务
 			err := sw.startProcessingTask(sw.taskDone, todo)
 
 			if err != nil {
@@ -399,12 +409,14 @@ func (sw *schedWorker) startProcessingTask(taskDone chan struct{}, req *workerRe
 	w.lk.Unlock()
 
 	go func() {
-		// first run the prepare step (e.g. fetching sector data from other worker)
+		// first run the prepare step (e.g. fetching sector data form other worker)
+		// 拉取数据等前置工作
 		err := req.prepare(req.ctx, sh.workTracker.worker(sw.wid, w.workerRpc))
 		sh.workersLk.Lock()
 
 		if err != nil {
 			w.lk.Lock()
+			// 释放资源
 			w.preparing.free(w.info.Resources, needRes)
 			w.lk.Unlock()
 			sh.workersLk.Unlock()
@@ -431,7 +443,7 @@ func (sw *schedWorker) startProcessingTask(taskDone chan struct{}, req *workerRe
 			w.preparing.free(w.info.Resources, needRes)
 			w.lk.Unlock()
 			sh.workersLk.Unlock()
-			defer sh.workersLk.Lock() // we MUST return locked from this function
+			defer sh.workersLk.Lock() // we MUST return locked form this function
 
 			select {
 			case taskDone <- struct{}{}:

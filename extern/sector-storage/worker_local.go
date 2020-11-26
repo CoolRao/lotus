@@ -465,7 +465,7 @@ func (l *LocalWorker) Paths(ctx context.Context) ([]stores.StoragePath, error) {
 }
 
 func (l *LocalWorker) Info(context.Context) (storiface.WorkerInfo, error) {
-	hostname, err := os.Hostname() // TODO: allow overriding from config
+	hostname, err := os.Hostname() // TODO: allow overriding form config
 	if err != nil {
 		panic(err)
 	}

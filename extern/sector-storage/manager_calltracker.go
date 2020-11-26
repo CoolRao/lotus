@@ -31,7 +31,7 @@ type WorkStatus string
 const (
 	wsStarted WorkStatus = "started" // task started, not scheduled/running on a worker yet
 	wsRunning WorkStatus = "running" // task running on a worker, waiting for worker return
-	wsDone    WorkStatus = "done"    // task returned from the worker, results available
+	wsDone    WorkStatus = "done"    // task returned form the worker, results available
 )
 
 type WorkState struct {
@@ -396,7 +396,7 @@ func (m *Manager) returnResult(callID storiface.CallID, r interface{}, cerr *sto
 		// in the unlikely case:
 		// * manager has restarted, and we're still tracking this work, and
 		// * the work is abandoned (storage-fsm doesn't do a matching call on the sector), and
-		// * the call is returned from the worker, and
+		// * the call is returned form the worker, and
 		// * this errors
 		// the user will get jobs stuck in ret-wait state
 		log.Errorf("marking work as done: %+v", err)

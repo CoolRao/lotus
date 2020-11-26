@@ -236,14 +236,14 @@ func (m *Manager) tryReadUnsealedPiece(ctx context.Context, sink io.Writer, sect
 
 	foundUnsealed = len(best) > 0
 	if foundUnsealed { // append to existing
-		// There is unsealed sector, see if we can read from it
+		// There is unsealed sector, see if we can read form it
 
 		selector = newExistingSelector(m.index, sector.ID, storiface.FTUnsealed, false)
 
 		err = m.sched.Schedule(ctx, sector, sealtasks.TTReadUnsealed, selector, m.schedFetch(sector, storiface.FTUnsealed, storiface.PathSealing, storiface.AcquireMove),
 			m.readPiece(sink, sector, offset, size, &readOk))
 		if err != nil {
-			returnErr = xerrors.Errorf("reading piece from sealed sector: %w", err)
+			returnErr = xerrors.Errorf("reading piece form sealed sector: %w", err)
 		}
 	} else {
 		selector = newAllocSelector(m.index, storiface.FTUnsealed, storiface.PathSealing)
@@ -296,7 +296,7 @@ func (m *Manager) ReadPiece(ctx context.Context, sink io.Writer, sector storage.
 	err = m.sched.Schedule(ctx, sector, sealtasks.TTReadUnsealed, selector, m.schedFetch(sector, storiface.FTUnsealed, storiface.PathSealing, storiface.AcquireMove),
 		m.readPiece(sink, sector, offset, size, &readOk))
 	if err != nil {
-		return xerrors.Errorf("reading piece from sealed sector: %w", err)
+		return xerrors.Errorf("reading piece form sealed sector: %w", err)
 	}
 
 	if !readOk {
