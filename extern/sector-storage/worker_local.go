@@ -3,6 +3,7 @@ package sectorstorage
 import (
 	"context"
 	"encoding/json"
+	"github.com/filecoin-project/lotus/extern/sector-storage/rao"
 	"io"
 	"os"
 	"reflect"
@@ -31,8 +32,9 @@ import (
 var pathTypes = []storiface.SectorFileType{storiface.FTUnsealed, storiface.FTSealed, storiface.FTCache}
 
 type WorkerConfig struct {
-	TaskTypes []sealtasks.TaskType
-	NoSwap    bool
+	TaskTypes    []sealtasks.TaskType
+	NoSwap       bool
+	WorkerConfig *rao.WorkerConfig
 }
 
 // used do provide custom proofs impl (mostly used in testing)
