@@ -32,9 +32,9 @@ import (
 var pathTypes = []storiface.SectorFileType{storiface.FTUnsealed, storiface.FTSealed, storiface.FTCache}
 
 type WorkerConfig struct {
-	TaskTypes    []sealtasks.TaskType
-	NoSwap       bool
-	WorkerConfig *rao.WorkerConfig
+	TaskTypes  []sealtasks.TaskType
+	NoSwap     bool
+	JobsConfig rao.JobsConfig
 }
 
 // used do provide custom proofs impl (mostly used in testing)
@@ -56,6 +56,7 @@ type LocalWorker struct {
 	session     uuid.UUID
 	testDisable int64
 	closing     chan struct{}
+	JobsConfig  rao.JobsConfig
 }
 
 func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store, local *stores.Local, sindex stores.SectorIndex, ret storiface.WorkerReturn, cst *statestore.StateStore) *LocalWorker {
@@ -63,7 +64,6 @@ func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store
 	for _, taskType := range wcfg.TaskTypes {
 		acceptTasks[taskType] = struct{}{}
 	}
-
 	w := &LocalWorker{
 		storage:    store,
 		localStore: local,
@@ -79,6 +79,8 @@ func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store
 
 		session: uuid.New(),
 		closing: make(chan struct{}),
+
+		JobsConfig: wcfg.JobsConfig,
 	}
 
 	if w.executor == nil {
@@ -234,7 +236,7 @@ func (l *LocalWorker) asyncCall(ctx context.Context, sector storage.SectorRef, r
 			vals:    ctx,
 			closing: l.closing,
 		}
-
+		rao.TimeSleep(3)
 		res, err := work(ctx, ci)
 
 		if err != nil {
@@ -511,9 +513,10 @@ func (l *LocalWorker) Info(context.Context) (storiface.WorkerInfo, error) {
 	if l.noSwap {
 		memSwap = 0
 	}
-
+	log.Info("hostName: ",hostname,"workerName: ",l.JobsConfig.HostName)
 	return storiface.WorkerInfo{
-		Hostname: hostname,
+		Hostname:   l.JobsConfig.HostName,
+		JobsConfig: l.JobsConfig,
 		Resources: storiface.WorkerResources{
 			MemPhysical: mem.Total,
 			MemSwap:     memSwap,

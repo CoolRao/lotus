@@ -28,7 +28,6 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 	if err != nil {
 		return xerrors.Errorf("getting worker info: %w", err)
 	}
-
 	sessID, err := w.Session(ctx)
 	if err != nil {
 		return xerrors.Errorf("getting worker session: %w", err)

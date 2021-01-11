@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/filecoin-project/lotus/extern/sector-storage/rao"
 	"io"
 	"time"
 
@@ -20,6 +21,8 @@ type WorkerInfo struct {
 	Hostname string
 
 	Resources WorkerResources
+
+	JobsConfig rao.JobsConfig
 }
 
 type WorkerResources struct {
