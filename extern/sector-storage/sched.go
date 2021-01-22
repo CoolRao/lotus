@@ -92,6 +92,8 @@ type workerHandle struct {
 	cleanupStarted bool
 	closedMgr      chan struct{}
 	closingMgr     chan struct{}
+
+	taskInfo *WorkerTaskInfo
 }
 
 type schedWindowRequest struct {

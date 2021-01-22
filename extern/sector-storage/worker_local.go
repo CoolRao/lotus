@@ -31,8 +31,9 @@ import (
 var pathTypes = []storiface.SectorFileType{storiface.FTUnsealed, storiface.FTSealed, storiface.FTCache}
 
 type WorkerConfig struct {
-	TaskTypes []sealtasks.TaskType
-	NoSwap    bool
+	TaskTypes  []sealtasks.TaskType
+	NoSwap     bool
+	JobsConfig map[string]interface{}
 }
 
 // used do provide custom proofs impl (mostly used in testing)
@@ -54,6 +55,7 @@ type LocalWorker struct {
 	session     uuid.UUID
 	testDisable int64
 	closing     chan struct{}
+	JobsConfig  map[string]interface{}
 }
 
 func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store, local *stores.Local, sindex stores.SectorIndex, ret storiface.WorkerReturn, cst *statestore.StateStore) *LocalWorker {
@@ -75,8 +77,9 @@ func newLocalWorker(executor ExecutorFunc, wcfg WorkerConfig, store stores.Store
 		executor:    executor,
 		noSwap:      wcfg.NoSwap,
 
-		session: uuid.New(),
-		closing: make(chan struct{}),
+		session:    uuid.New(),
+		closing:    make(chan struct{}),
+		JobsConfig: wcfg.JobsConfig,
 	}
 
 	if w.executor == nil {
@@ -509,9 +512,9 @@ func (l *LocalWorker) Info(context.Context) (storiface.WorkerInfo, error) {
 	if l.noSwap {
 		memSwap = 0
 	}
-
 	return storiface.WorkerInfo{
 		Hostname: hostname,
+		JobConfig:l.JobsConfig,
 		Resources: storiface.WorkerResources{
 			MemPhysical: mem.Total,
 			MemSwap:     memSwap,

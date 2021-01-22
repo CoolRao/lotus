@@ -20,6 +20,8 @@ type WorkerInfo struct {
 	Hostname string
 
 	Resources WorkerResources
+
+	JobConfig map[string]interface{}
 }
 
 type WorkerResources struct {

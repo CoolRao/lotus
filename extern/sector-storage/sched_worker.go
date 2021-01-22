@@ -47,6 +47,7 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 
 		closingMgr: make(chan struct{}),
 		closedMgr:  make(chan struct{}),
+		taskInfo:   newWorkerTaskInfo(sessID.String(), info.Hostname, info.JobConfig),
 	}
 
 	wid := WorkerID(sessID)

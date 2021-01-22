@@ -377,11 +377,16 @@ var runCmd = &cli.Command{
 		// Create / expose the worker
 
 		wsts := statestore.New(namespace.Wrap(ds, modules.WorkerCallsPrefix))
+		cfg, err := ReadCfg("./workerconfig.json")
+		if err != nil {
+			return xerrors.Errorf("read file error: %v ", err)
+		}
 
 		workerApi := &worker{
 			LocalWorker: sectorstorage.NewLocalWorker(sectorstorage.WorkerConfig{
-				TaskTypes: taskTypes,
-				NoSwap:    cctx.Bool("no-swap"),
+				TaskTypes:  taskTypes,
+				NoSwap:     cctx.Bool("no-swap"),
+				JobsConfig: cfg,
 			}, remote, localStore, nodeApi, nodeApi, wsts),
 			localStore: localStore,
 			ls:         lr,
