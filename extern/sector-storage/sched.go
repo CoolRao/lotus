@@ -411,6 +411,10 @@ func (sh *scheduler) trySched() {
 					continue
 				}
 
+				if ! sh.TaskOk(task, worker) {
+					continue
+				}
+
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
 
@@ -434,6 +438,7 @@ func (sh *scheduler) trySched() {
 				wi := sh.workers[wii]
 				wj := sh.workers[wji]
 
+				return sh.TaskCmp(task.taskType, wi, wj)
 				rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
 				defer cancel()
 
@@ -460,6 +465,7 @@ func (sh *scheduler) trySched() {
 		needRes := ResourceTable[task.taskType][task.sector.ProofType]
 
 		selectedWindow := -1
+		wokerId := WorkerID{}
 		for _, wnd := range acceptableWindows[task.indexHeap] {
 			wid := sh.openWindows[wnd].worker
 			wr := sh.workers[wid].info.Resources
@@ -480,6 +486,7 @@ func (sh *scheduler) trySched() {
 			//  without additional network roundtrips (O(n^2) could be avoided by turning acceptableWindows.[] into heaps))
 
 			selectedWindow = wnd
+			wokerId = wid
 			break
 		}
 
@@ -487,7 +494,7 @@ func (sh *scheduler) trySched() {
 			// all windows full
 			continue
 		}
-
+		sh.UpdateSectorInfo(wokerId, task, sh.workers[wokerId])
 		windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
 
 		rmQueue = append(rmQueue, sqi)
