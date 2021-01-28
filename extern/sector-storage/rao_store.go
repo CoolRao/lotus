@@ -8,42 +8,177 @@ import (
 	"sync"
 )
 
-var SM = NewStorageManager()
+type SectorStore map[abi.SectorID]*SectorInfo
 
-type StorageManager struct {
-	sectors map[abi.SectorID]*SectorInfo
-	sync.Mutex
-}
-
-func NewStorageManager() *StorageManager {
-	return &StorageManager{
-		sectors: make(map[abi.SectorID]*SectorInfo),
+func (s SectorStore) Put(sector *SectorInfo) {
+	if sector == nil {
+		return
 	}
+	s[sector.ID] = sector
 }
 
-func (s *StorageManager) GetSectorInfo(sid abi.SectorID) (SectorInfo, bool) {
-	s.Lock()
-	defer s.Unlock()
-	info, ok := s.sectors[sid]
+func (s SectorStore) Delete(sectorId abi.SectorID) {
+	delete(s, sectorId)
+}
+
+func (s SectorStore) Get(sectorId abi.SectorID) (*SectorInfo, error) {
+	sectorInfo, ok := s[sectorId]
 	if ok {
-		return *info, true
+		return sectorInfo, nil
 	}
-	return SectorInfo{}, false
+	return nil, fmt.Errorf("sectorStore: no find sector %v ", sectorId)
 }
 
-func (s *StorageManager) UpdateSectorInfo(sid abi.SectorID, taskType sealtasks.TaskType, hostName string, force bool) {
-	log.Infof("rao update sector info  sid: %v ,taskType: %v hostName:  %v ", sid, taskType, hostName)
-	s.Lock()
-	defer s.Unlock()
-	sectorInfo, ok := s.sectors[sid]
+func (s SectorStore) Has(sectorId abi.SectorID) bool {
+	_, ok := s[sectorId]
+	return ok
+}
+
+type CountMap map[sealtasks.TaskType]int
+
+func (c CountMap) Add(taskType sealtasks.TaskType) {
+	count, ok := c[taskType]
 	if ok {
-		sectorInfo.UpdateHost(taskType, hostName, force)
+		c[taskType] = count + 1
 	} else {
-		newSectorInfo := NewSectorInfo(sid, taskType)
-		newSectorInfo.UpdateHost(taskType, hostName, force)
-		s.sectors[sid] = newSectorInfo
+		c[taskType] = 1
+	}
+}
+
+func (c CountMap) Get(taskType sealtasks.TaskType) int {
+	count, ok := c[taskType]
+	if ok {
+		return count
+	}
+	return 0
+}
+
+func (c CountMap) Del(taskType sealtasks.TaskType) {
+	count, ok := c[taskType]
+	if ok {
+		c[taskType] = count - 1
+	}
+}
+
+func (c CountMap) Clear(taskType sealtasks.TaskType) {
+	_, ok := c[taskType]
+	if ok {
+		c[taskType] = 0
+	}
+}
+
+type TaskCount struct {
+	HostName     string
+	cacheCount   CountMap
+	runningCount CountMap
+	JobsConfig   JobsConfig
+	lock         sync.RWMutex
+}
+
+func NewTaskCount(hostName string, jobCfg map[string]interface{}) *TaskCount {
+	jc := JobsConfig{}
+	err := MapToStruct(jobCfg, &jc)
+	if err != nil {
+		panic(err)
+	}
+	return &TaskCount{HostName: hostName, cacheCount: CountMap{}, runningCount: CountMap{}, JobsConfig: jc}
+}
+
+func (w *TaskCount) GetTotal(taskType sealtasks.TaskType) int {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	cacheCount := w.cacheCount.Get(taskType)
+	runningCount := w.runningCount.Get(taskType)
+	total := cacheCount + runningCount
+	return total
+}
+
+func (w *TaskCount) IncrCacheCount(taskType sealtasks.TaskType) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.cacheCount.Add(taskType)
+}
+
+func (w *TaskCount) ClearCache(taskType sealtasks.TaskType) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.cacheCount.Clear(taskType)
+}
+
+func (w *TaskCount) IncrRunning(taskType sealtasks.TaskType) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.runningCount.Add(taskType)
+}
+
+func (w *TaskCount) DelRunning(taskType sealtasks.TaskType) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.runningCount.Del(taskType)
+}
+
+var TM = NewTaskManager()
+
+type TaskManager struct {
+	sync.RWMutex
+	SectorStore SectorStore
+}
+
+func NewTaskManager() *TaskManager {
+	return &TaskManager{SectorStore: SectorStore{}}
+}
+
+func (t TaskManager) TaskOk(sectorId abi.SectorID, taskType sealtasks.TaskType, worker *workerHandle) bool {
+
+	// 判断这个任务是否需要从本地做，如果匹配直接返回 true
+	sectorInfo, err := t.Get(sectorId)
+	if err != nil {
+		log.Error("rao no find sectorInfo: %v \n", err)
 	}
 
+	if sectorInfo != nil && !sectorInfo.IsLocalMatch(taskType, worker.info.Hostname) {
+		return false
+	}
+
+	// 判断这个 worker，在worker对列中,对于该类型的任务数量(已经运行和已经分配的) worker,满足返回  true
+
+	return false
+}
+
+func (t TaskManager) Del(sectorId abi.SectorID) {
+	t.Lock()
+	defer t.Unlock()
+	t.SectorStore.Delete(sectorId)
+}
+
+func (t TaskManager) Get(sectorId abi.SectorID) (*SectorInfo, error) {
+	t.RLock()
+	defer t.RUnlock()
+	sectorInfo, err := t.SectorStore.Get(sectorId)
+	return sectorInfo, err
+}
+
+func (t TaskManager) Has(sectorId abi.SectorID) bool {
+	t.RLock()
+	defer t.RUnlock()
+	has := t.SectorStore.Has(sectorId)
+	return has
+}
+
+func (t TaskManager) Update(sectorId abi.SectorID, taskType sealtasks.TaskType, hostName string, force bool) {
+	t.Lock()
+	defer t.Unlock()
+	has := t.SectorStore.Has(sectorId)
+	if !has {
+		t.SectorStore.Put(NewSectorInfo(sectorId, taskType))
+	} else {
+		sectorInfo, err := t.SectorStore.Get(sectorId)
+		if err != nil {
+			log.Errorf(err.Error())
+			return
+		}
+		sectorInfo.UpdateHost(taskType, hostName, force)
+	}
 }
 
 type SectorInfo struct {
@@ -63,7 +198,7 @@ func (s *SectorInfo) Info() string {
 	return fmt.Sprintf("Id: %v , ApHost: %v,P1Host: %v ,p2Host: %v ,c2Host: %v ", s.ID, s.APHost, s.Pre1Host, s.Pre2Host, s.C2Host)
 }
 
-func (s *SectorInfo) IsMatch(taskType sealtasks.TaskType, hostName string) bool {
+func (s *SectorInfo) IsLocalMatch(taskType sealtasks.TaskType, hostName string) bool {
 	match := true
 	switch taskType {
 	case sealtasks.TTPreCommit1:
@@ -285,12 +420,12 @@ func (w *WorkerTaskInfo) CanAddTask(taskType sealtasks.TaskType) bool {
 }
 
 func newWorkerTaskInfo(wid, hostName string, jobCfg map[string]interface{}) *WorkerTaskInfo {
-	log.Infof("rao taskManger  wid: %v hostName: %v jobCfg: %v ", wid, hostName, jobCfg)
 	cfg := JobsConfig{}
 	err := MapToStruct(jobCfg, &cfg)
 	if err != nil {
 		log.Errorf("parse job cfg error: %v ", err)
 	}
+	log.Infof("rao taskManger  wid: %v hostName: %v jobCfg: %v ", wid, hostName, cfg)
 	return &WorkerTaskInfo{
 		Wid:            wid,
 		HostName:       hostName,

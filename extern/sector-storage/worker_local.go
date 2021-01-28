@@ -230,7 +230,7 @@ func (l *LocalWorker) asyncCall(ctx context.Context, sector storage.SectorRef, r
 
 	go func() {
 		defer l.running.Done()
-
+		TimeSleepSecond(15)
 		ctx := &wctx{
 			vals:    ctx,
 			closing: l.closing,
@@ -513,8 +513,8 @@ func (l *LocalWorker) Info(context.Context) (storiface.WorkerInfo, error) {
 		memSwap = 0
 	}
 	return storiface.WorkerInfo{
-		Hostname: hostname,
-		JobConfig:l.JobsConfig,
+		Hostname:  getWorkerHostName(hostname, l.JobsConfig),
+		JobConfig: l.JobsConfig,
 		Resources: storiface.WorkerResources{
 			MemPhysical: mem.Total,
 			MemSwap:     memSwap,

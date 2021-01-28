@@ -2,6 +2,7 @@ package sectorstorage
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -93,7 +94,7 @@ type workerHandle struct {
 	closedMgr      chan struct{}
 	closingMgr     chan struct{}
 
-	taskInfo *WorkerTaskInfo
+	taskInfo *TaskCount
 }
 
 type schedWindowRequest struct {
@@ -411,9 +412,9 @@ func (sh *scheduler) trySched() {
 					continue
 				}
 
-				if ! sh.TaskOk(task, worker) {
-					continue
-				}
+				//if ! sh.TaskOk(task, worker) {
+				//	continue
+				//}
 
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
@@ -438,7 +439,7 @@ func (sh *scheduler) trySched() {
 				wi := sh.workers[wii]
 				wj := sh.workers[wji]
 
-				return sh.TaskCmp(task.taskType, wi, wj)
+				//return sh.TaskCmp(task.taskType, wi, wj)
 				rpcCtx, cancel := context.WithTimeout(task.ctx, SelectorTimeout)
 				defer cancel()
 
@@ -494,7 +495,8 @@ func (sh *scheduler) trySched() {
 			// all windows full
 			continue
 		}
-		sh.UpdateSectorInfo(wokerId, task, sh.workers[wokerId])
+		fmt.Println(wokerId)
+		//sh.UpdateSectorInfo(wokerId, task, sh.workers[wokerId])
 		windows[selectedWindow].todo = append(windows[selectedWindow].todo, task)
 
 		rmQueue = append(rmQueue, sqi)
