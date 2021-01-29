@@ -398,7 +398,7 @@ func (sw *schedWorker) startProcessingTask(taskDone chan struct{}, req *workerRe
 	w.lk.Unlock()
 
 	go func() {
-		defer sw.worker.taskInfo.DelCount(req.taskType)
+		defer sw.worker.taskInfo.DelRunning(req.taskType)
 
 		// first run the prepare step (e.g. fetching sector data from other worker)
 		err := req.prepare(req.ctx, sh.workTracker.worker(sw.wid, w.workerRpc))

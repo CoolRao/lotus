@@ -412,9 +412,9 @@ func (sh *scheduler) trySched() {
 					continue
 				}
 
-				//if ! sh.TaskOk(task, worker) {
-				//	continue
-				//}
+				if ! sh.TaskOk(task, worker) {
+					continue
+				}
 
 				acceptableWindows[sqi] = append(acceptableWindows[sqi], wnd)
 			}
@@ -430,6 +430,7 @@ func (sh *scheduler) trySched() {
 			sort.SliceStable(acceptableWindows[sqi], func(i, j int) bool {
 				wii := sh.openWindows[acceptableWindows[sqi][i]].worker // nolint:scopelint
 				wji := sh.openWindows[acceptableWindows[sqi][j]].worker // nolint:scopelint
+
 
 				if wii == wji {
 					// for the same worker prefer older windows
