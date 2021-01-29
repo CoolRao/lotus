@@ -1,6 +1,7 @@
 package sectorstorage
 
 import (
+	"context"
 	"fmt"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/extern/sector-storage/sealtasks"
@@ -70,14 +71,22 @@ func (c CountMap) Clear(taskType sealtasks.TaskType) {
 type TaskCount struct {
 	JobsConfig JobsConfig
 	TaskCount  CountMap
-	WorkerId   WorkID
+	WorkerId   WorkerID
+	tasks      map[sealtasks.TaskType]struct{}
 }
 
-func NewTaskCount(workerId WorkID, jobCfg JobsConfig) *TaskCount {
+func (w *TaskCount) Support(taskType sealtasks.TaskType) bool {
+	_, supported := w.tasks[taskType]
+	return supported
+
+}
+
+func NewTaskCount(workerId WorkerID, jobCfg JobsConfig, tasks map[sealtasks.TaskType]struct{}) *TaskCount {
 	return &TaskCount{
 		TaskCount:  CountMap{},
 		WorkerId:   workerId,
 		JobsConfig: jobCfg,
+		tasks:      tasks,
 	}
 }
 
@@ -131,27 +140,34 @@ var TM = NewTaskManager()
 type TaskManager struct {
 	sync.RWMutex
 	SectorStore SectorStore
-	TaskCount   map[WorkID]*TaskCount
+	TaskCount   map[WorkerID]*TaskCount
 }
 
 func NewTaskManager() *TaskManager {
-	return &TaskManager{SectorStore: SectorStore{}, TaskCount: make(map[WorkID]*TaskCount)}
+	return &TaskManager{SectorStore: SectorStore{}, TaskCount: make(map[WorkerID]*TaskCount)}
 }
 
 func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 
+	// 判断任务总数是否限制
 	workerId := worker.taskInfo.WorkerId
 	taskCount, tOK := t.TaskCount[workerId]
 	if !tOK {
-		taskCount = NewTaskCount(workerId, worker.taskInfo.JobsConfig)
+		types, err := worker.workerRpc.TaskTypes(context.TODO())
+		if err != nil {
+			log.Errorf("rao taskManager: get taskType error: %v", err)
+			return false
+		}
+		taskCount = NewTaskCount(workerId, worker.taskInfo.JobsConfig, types)
 		t.TaskCount[workerId] = taskCount
 	}
-
 	count, ok := taskCount.TaskCountOk(task.taskType)
 	if !ok {
+		log.Infof("rao taskManaer: task is not ok, hostName: %v  count: %v   ", worker.info.Hostname, count)
 		return false
 	}
 
+	// 判断是否从本地开始做
 	sectorId := task.sector.ID
 	sectorInfo, sOk := t.SectorStore.Get(sectorId)
 	if !sOk {
@@ -160,22 +176,25 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 	}
 
 	if local, match := sectorInfo.NeedFromLocal(task.taskType, worker.info.Hostname); local && !match {
+		log.Infof("rao taskManager: sector need from loacal: secororId: %v  taskType: %v  hostName: %v ", sectorId, task.taskType, worker.info.Hostname)
 		return false
 	}
 
+	// 是否是任务数最小worker 
 	minWorker := t.matchMinWorker(task.taskType, count)
 	if !minWorker {
+		log.Infof("rao taskManager: is not min worker: hostName: %v ", worker.info.Hostname)
 		return false
 	}
 
 	state := t.GetState(task.taskType, worker.taskInfo.JobsConfig)
 
-	t.Update(sectorId,task.taskType,worker.info.Hostname,state)
+	t.Update(sectorId, task.taskType, worker.info.Hostname, state)
 
 	return true
 }
 
-func (t TaskManager) GetState(taskType sealtasks.TaskType, config JobsConfig) bool {
+func (t *TaskManager) GetState(taskType sealtasks.TaskType, config JobsConfig) bool {
 	switch taskType {
 	case sealtasks.TTAddPiece:
 		return config.ForceP1FromLocalAP
@@ -190,18 +209,29 @@ func (t TaskManager) GetState(taskType sealtasks.TaskType, config JobsConfig) bo
 	return false
 }
 
+func (t *TaskManager) DelSector(workerId WorkerID, taskType sealtasks.TaskType) {
+	taskCount, ok := t.TaskCount[workerId]
+	if ok {
+		taskCount.Del(taskType)
+	} else {
+		log.Errorf("rao taskManager: hostName: %v taskCount not exists %v ", workerId, taskType)
+	}
+}
+
 func (t TaskManager) matchMinWorker(taskType sealtasks.TaskType, curCount int) bool {
 	min := false
 	for _, taskCount := range t.TaskCount {
-		count := taskCount.Get(taskType)
-		if curCount <= count {
-			min = true
+		if taskCount.Support(taskType) {
+			count := taskCount.Get(taskType)
+			if curCount <= count {
+				min = true
+			}
 		}
 	}
 	return min
 }
 
-func (t TaskManager) Update(sectorId abi.SectorID, taskType sealtasks.TaskType, hostName string, force bool) {
+func (t *TaskManager) Update(sectorId abi.SectorID, taskType sealtasks.TaskType, hostName string, force bool) {
 	t.Lock()
 	defer t.Unlock()
 	has := t.SectorStore.Has(sectorId)
