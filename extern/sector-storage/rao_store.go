@@ -150,7 +150,7 @@ func NewTaskManager() *TaskManager {
 func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 
 	// 判断任务总数是否限制
-	workerId := worker.taskInfo.WorkerId
+	workerId := worker.workerId
 	taskCount, tOK := t.TaskCount[workerId]
 	if !tOK {
 		types, err := worker.workerRpc.TaskTypes(context.TODO())
@@ -158,7 +158,7 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 			log.Errorf("rao taskManager: get taskType error: %v", err)
 			return false
 		}
-		taskCount = NewTaskCount(workerId, worker.taskInfo.JobsConfig, types)
+		taskCount = NewTaskCount(workerId, worker.JobsConfig, types)
 		t.TaskCount[workerId] = taskCount
 	}
 	count, ok := taskCount.TaskCountOk(task.taskType)
@@ -180,14 +180,14 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 		return false
 	}
 
-	// 是否是任务数最小worker 
+	// 是否是任务数最小worker
 	minWorker := t.matchMinWorker(task.taskType, count)
 	if !minWorker {
 		log.Infof("rao taskManager: is not min worker: hostName: %v ", worker.info.Hostname)
 		return false
 	}
 
-	state := t.GetState(task.taskType, worker.taskInfo.JobsConfig)
+	state := t.GetState(task.taskType, worker.JobsConfig)
 
 	t.Update(sectorId, task.taskType, worker.info.Hostname, state)
 

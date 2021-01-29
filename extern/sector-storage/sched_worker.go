@@ -36,7 +36,11 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 	if sessID == ClosedWorkerID {
 		return xerrors.Errorf("worker already closed")
 	}
-
+	jobCfg := JobsConfig{}
+	err = MapToStruct(info.JobConfig, &jobCfg)
+	if err != nil {
+		panic(err)
+	}
 	worker := &workerHandle{
 		workerRpc: w,
 		info:      info,
@@ -47,6 +51,8 @@ func (sh *scheduler) runWorker(ctx context.Context, w Worker) error {
 
 		closingMgr: make(chan struct{}),
 		closedMgr:  make(chan struct{}),
+		JobsConfig: jobCfg,
+		workerId:   WorkerID(sessID),
 	}
 
 	wid := WorkerID(sessID)
