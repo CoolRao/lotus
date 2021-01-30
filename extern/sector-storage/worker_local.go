@@ -230,7 +230,7 @@ func (l *LocalWorker) asyncCall(ctx context.Context, sector storage.SectorRef, r
 
 	go func() {
 		defer l.running.Done()
-		TimeSleepSecond(15)
+		TimeSleepSecond(45)
 		ctx := &wctx{
 			vals:    ctx,
 			closing: l.closing,
