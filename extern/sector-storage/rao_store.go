@@ -8,6 +8,7 @@ import (
 	"sync"
 )
 
+// 存储每个扇区信息映射表
 type SectorStore map[abi.SectorID]*SectorInfo
 
 func (s SectorStore) Put(sector *SectorInfo) {
@@ -34,6 +35,7 @@ func (s SectorStore) Has(sectorId abi.SectorID) bool {
 	return ok
 }
 
+// 记录每个扇区任务数量表
 type CountMap map[sealtasks.TaskType]int
 
 func (c CountMap) Add(taskType sealtasks.TaskType) {
@@ -67,18 +69,26 @@ func (c CountMap) Clear(taskType sealtasks.TaskType) {
 	}
 }
 
+// 记录一个 worker 任务信息
 type TaskCount struct {
-	JobsConfig JobsConfig
-	TaskCount  CountMap
-	WorkerId   WorkerID
+	JobsConfig   JobsConfig
+	TaskCount    CountMap
+	WorkerId     WorkerID
+	SupportTasks map[sealtasks.TaskType]struct{}
 }
 
-func NewTaskCount(workerId WorkerID, jobCfg JobsConfig) *TaskCount {
+func NewTaskCount(workerId WorkerID, jobCfg JobsConfig, taskTypes map[sealtasks.TaskType]struct{}) *TaskCount {
 	return &TaskCount{
-		TaskCount:  CountMap{},
-		WorkerId:   workerId,
-		JobsConfig: jobCfg,
+		TaskCount:    CountMap{},
+		WorkerId:     workerId,
+		JobsConfig:   jobCfg,
+		SupportTasks: taskTypes,
 	}
+}
+
+func (w *TaskCount) SupportTaskType(taskType sealtasks.TaskType) bool {
+	_, ok := w.SupportTasks[taskType]
+	return ok
 }
 
 func (w *TaskCount) Add(taskType sealtasks.TaskType) {
@@ -147,7 +157,6 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 		return true
 	}
 
-	//  判断是否已经分配了，没有分配判断该任务是否需要本地做
 	sectorId := task.sector.ID
 	sectorInfo, sOk := t.SectorStore.Get(sectorId)
 	if !sOk {
@@ -155,10 +164,13 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 		t.SectorStore.Put(sectorInfo)
 	}
 
+	//  是否扇区已经分配
 	if sectorInfo.HavAssigned() {
 		log.Infof("rao sector have assigned:  sectorId: %v ,taskType: %v ", sectorId, task.taskType)
 		return false
 	}
+
+	//  判断是否已经分配了，没有分配判断该任务是否需要本地做
 	if local, match := sectorInfo.NeedFromLocal(task.taskType, worker.info.Hostname); local && !match {
 		log.Infof("rao taskManager: sector need from loacal: secororId: %v  taskType: %v  hostName: %v ", sectorId, task.taskType, worker.info.Hostname)
 		return false
@@ -168,8 +180,7 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 	workerId := worker.workerId
 	taskCount, tOK := t.TaskCount[workerId]
 	if !tOK {
-		taskCount = NewTaskCount(workerId, worker.JobsConfig)
-		t.TaskCount[workerId] = taskCount
+		// todo nevel happen,
 		log.Infof("rao create worker taskCount: wid: %v  taskType: %v  sectorId: %v ", workerId, task.taskType, task.sector.ID)
 	}
 	count, ok := taskCount.TaskCountOk(task.taskType)
@@ -187,14 +198,22 @@ func (t TaskManager) TaskOk(task *workerRequest, worker *workerHandle) bool {
 		return false
 	}
 
-	//log.Infof("rao minWorker: hostName: %v, taskType: %v  count: %v ", worker.info.Hostname, task.taskType, count)
-	state := t.GetState(task.taskType, worker.JobsConfig)
+	log.Infof("rao matchWorker: hostName: %v, taskType: %v  count: %v ", worker.info.Hostname, task.taskType, count)
+	state := t.GetFromLocalState(task.taskType, worker.JobsConfig)
 
 	taskCount.Add(task.taskType)
 
+	// 更新扇区信息
 	sectorInfo.UpdateHost(task.taskType, worker.info.Hostname, state)
 
 	return true
+}
+
+func (t *TaskManager) AddTaskCount(whnd *workerHandle, taskTypes map[sealtasks.TaskType]struct{}) {
+	t.Lock()
+	defer t.Unlock()
+	taskCount := NewTaskCount(whnd.workerId, whnd.JobsConfig, taskTypes)
+	t.TaskCount[whnd.workerId] = taskCount
 }
 
 func (t *TaskManager) MatchTaskType(taskType sealtasks.TaskType) bool {
@@ -215,7 +234,7 @@ func (t *TaskManager) MatchTaskType(taskType sealtasks.TaskType) bool {
 	return match
 }
 
-func (t *TaskManager) GetState(taskType sealtasks.TaskType, config JobsConfig) bool {
+func (t *TaskManager) GetFromLocalState(taskType sealtasks.TaskType, config JobsConfig) bool {
 	switch taskType {
 	case sealtasks.TTAddPiece:
 		return config.ForceP1FromLocalAP
@@ -246,16 +265,25 @@ func (t *TaskManager) DelSector(sectorId abi.SectorID, workerId WorkerID, taskTy
 	}
 }
 
+// 找出该类worker最小数的
 func (t TaskManager) matchMinWorker(taskType sealtasks.TaskType, curCount int) bool {
-	min := false
-	for _, taskCount := range t.TaskCount {
-		count := taskCount.Get(taskType)
-		if curCount <= count {
-			min = true
-		}
-		log.Infof("rao minWorker:curCount: %v  count: %v  taskType: %v", curCount, count, taskType)
+	if curCount == 0 {
+		return true
 	}
-	return min
+	tCount := curCount
+	for _, taskCount := range t.TaskCount {
+		ok := taskCount.SupportTaskType(taskType)
+		if !ok {
+			continue
+		}
+		count := taskCount.Get(taskType)
+		if count < tCount {
+			tCount = count
+		}
+	}
+	match := tCount == curCount
+	log.Infof("rao match: %v ,tCount: %v Count: %v ", match, tCount, curCount)
+	return match
 }
 
 func (t *TaskManager) Update(sectorId abi.SectorID, taskType sealtasks.TaskType, hostName string, force bool) {
