@@ -307,7 +307,7 @@ func (m *Sealing) plan(events []statemachine.Event, state *SectorInfo) (func(sta
 	case PreCommitting:
 		return m.handlePreCommitting, processed, nil
 	case PreCommitWait:
-		return m.handlePreCommitWait, processed, nil
+		return m.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             handlePreCommitWait, processed, nil
 	case WaitSeed:
 		return m.handleWaitSeed, processed, nil
 	case Committing:
