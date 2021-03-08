@@ -186,6 +186,16 @@ func (m *Sealing) remarkForUpgrade(sid abi.SectorNumber) {
 }
 
 func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInfo) error {
+	canSubmit, ticketWillExpired := LoopPreCommitCheckGas(sector)
+	if !canSubmit {
+		if ticketWillExpired {
+			log.Infof("%v sector preCommit ticketEpock will expired: sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
+		} else {
+			log.Infof("%v sector preCommit, can not subimt, other error, sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
+		}
+	}
+	log.Infof("%v sector can submit preCommit,sectorNumner: %v ,ticketEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
+
 	tok, height, err := m.api.ChainHead(ctx.Context())
 	if err != nil {
 		log.Errorf("handlePreCommitting: api error, not proceeding: %+v", err)
@@ -413,6 +423,16 @@ func (m *Sealing) handleCommitting(ctx statemachine.Context, sector SectorInfo) 
 }
 
 func (m *Sealing) handleSubmitCommit(ctx statemachine.Context, sector SectorInfo) error {
+	canSubmit, willExpired := LoopProveCommitCheckGas(sector)
+	if !canSubmit {
+		if willExpired {
+			log.Infof("%v sector proveCommit ticketEpock will expired: sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
+		} else {
+			log.Infof("%v sector proveCommit, can not subimt, other error, sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
+		}
+	}
+	log.Infof("%v sector can submit proveCommit,sectorNumner: %v ,ticketEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
+
 	tok, _, err := m.api.ChainHead(ctx.Context())
 	if err != nil {
 		log.Errorf("handleCommitting: api error, not proceeding: %+v", err)

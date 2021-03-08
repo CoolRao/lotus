@@ -9,25 +9,74 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"golang.org/x/xerrors"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 )
 
-type Manager struct {
+// ticket过期时间, 还剩三分之一时必须进行处理的操作
+func sectorExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+
+	return epoch-sector.TicketEpoch > MaxTicketAge-(MaxTicketAge/3)
+}
+
+/**
+PreCommit 提交处理
+返回值
+	第一个代表：当期gas费率满足要求可以提交
+	第二个代表：扇区即将到期，必须进行处理
+*/
+func LoopPreCommitCheckGas(sector SectorInfo) (bool, bool) {
+	for {
+		if GwSchedulerManger.CanSubCommitted() {
+			return true, false
+		}
+		expectExpired := sectorExpectExpired(sector, GwSchedulerManger.currentEpoch)
+		if expectExpired {
+			return false, true
+		}
+		// todo 最终要推出
+		time.Sleep(30 * time.Second)
+	}
+
+}
+
+/**
+ProveCommit  提交处理
+返回值
+	第一个代表：当期gas费率满足要求可以提交
+	第二个代表：扇区即将到期，必须进行处理
+*/
+
+func LoopProveCommitCheckGas(sector SectorInfo) (bool, bool) {
+	for {
+		if GwSchedulerManger.CanSubCommitted() {
+			return true, false
+		}
+		// todo  confirm ProveCommitMsgMaxAge
+		if GwSchedulerManger.currentEpoch-sector.SeedEpoch > ProveCommitMsgMaxAge {
+			return false, true
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
+type GwSchedulerManager struct {
 	fullNodeApi      api.FullNode
 	apiClose         jsonrpc.ClientCloser
 	currentBaseFee   abi.TokenAmount
 	thresholdBaseFee abi.TokenAmount
 	heartTimer       *time.Ticker
 	closeSign        chan struct{}
-	switchOpen       bool            // 是否开启自动提交的功能， false 走原来的逻辑，自动提交
-	sync.Mutex
+	switchOpen       bool
+	currentEpoch     abi.ChainEpoch
+	baseFeeLock      sync.Mutex
 }
 
-var GwSchedulerManger = &Manager{}
+var GwSchedulerManger = &GwSchedulerManager{}
 
-func (m *Manager) Run() error {
+func (m *GwSchedulerManager) Run() error {
 	m.closeSign = make(chan struct{}, 1)
 
 	fullNodeAPI, closer, err := GetFullNodeAPI()
@@ -64,7 +113,7 @@ func (m *Manager) Run() error {
 	return nil
 }
 
-func (m *Manager) runBaseFee() abi.TokenAmount {
+func (m *GwSchedulerManager) runBaseFee() abi.TokenAmount {
 	for {
 		select {
 		case <-m.heartTimer.C:
@@ -75,40 +124,49 @@ func (m *Manager) runBaseFee() abi.TokenAmount {
 				// todo check api 错误
 				continue
 			}
-			m.Lock()
+			m.baseFeeLock.Lock()
 			m.currentBaseFee = chainHead.MinTicketBlock().ParentBaseFee
-			m.Unlock()
-			log.Infof("%v get current BaseFee  %v ", GwLogFilterFlag, m.currentBaseFee)
+			m.currentEpoch = chainHead.Height()
+			m.baseFeeLock.Unlock()
+			log.Infof("%v get current BaseFee  %v,currentEpock %v ", GwLogFilterFlag, m.currentBaseFee, m.currentEpoch)
 		case <-m.closeSign:
 			return abi.TokenAmount{}
 		}
 	}
 }
 
-func (m *Manager) runWebServer() error {
+func (m *GwSchedulerManager) runWebServer() error {
 
 	http.HandleFunc(SetBaseFeeThresholdApiPath, m.ConfigThresholdBaseFeeHandler)
+	http.HandleFunc(SetAutoSwitchStatusApiPath, m.ConfigAutoCommitSwitchHandler)
 
-	http.HandleFunc(SetAutoSwitchStatusApiPath, m.ConfigThresholdBaseFeeHandler)
+	schedulerPort := os.Getenv(GwSchedulerPortKey)
+	if schedulerPort != "" {
+		_, err := strconv.ParseInt(schedulerPort, 10, 64)
+		if err != nil {
+			return xerrors.Errorf("%v config scheduler server port is error,value is %v ,please correct config: %v ", GwLogFilterFlag, schedulerPort, err)
+		}
+	} else {
+		schedulerPort = DefaultSchedulerPort
+	}
 
-	// todo 默认端口环境变量获取
-	err := http.ListenAndServe(":1100", nil)
+	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%v", schedulerPort), nil)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *Manager) CanSubCommitted() bool {
-	m.Lock()
-	defer m.Unlock()
+func (m *GwSchedulerManager) CanSubCommitted() bool {
+	m.baseFeeLock.Lock()
+	defer m.baseFeeLock.Unlock()
 	if !m.switchOpen {
 		return true
 	}
 	return m.currentBaseFee.LessThan(m.thresholdBaseFee)
 }
 
-func (m *Manager) Close() {
+func (m *GwSchedulerManager) Close() {
 	close(m.closeSign)
 	if m.apiClose != nil {
 		m.apiClose()
@@ -117,10 +175,10 @@ func (m *Manager) Close() {
 
 }
 
-func (m *Manager) ConfigThresholdBaseFeeHandler(writer http.ResponseWriter, request *http.Request) {
+func (m *GwSchedulerManager) ConfigThresholdBaseFeeHandler(writer http.ResponseWriter, request *http.Request) {
 	baseFee := request.FormValue("baseFee")
 	option := request.FormValue("option")
-	log.Infof("%v get base Config: set baseFee= %v ,option=%v ", GwLogFilterFlag, baseFee, option)
+	log.Infof("%v get baseFee Config: set baseFee= %v ,option=%v ", GwLogFilterFlag, baseFee, option)
 	if option == "ConfigBaseFee" {
 		bigBaseFee, err := big.FromString(baseFee)
 		if err != nil {
@@ -128,7 +186,7 @@ func (m *Manager) ConfigThresholdBaseFeeHandler(writer http.ResponseWriter, requ
 		}
 		// todo
 		m.thresholdBaseFee = bigBaseFee
-		log.Infof("%v config baseFee success,value is %v ", GwLogFilterFlag, m.thresholdBaseFee)
+		log.Infof("%v config ThresholdBaseFee is success,value is %v ", GwLogFilterFlag, m.thresholdBaseFee)
 		_, err = writer.Write([]byte(fmt.Sprintf("config thresholdBaseFee is success, value is %v ", m.thresholdBaseFee)))
 		if err != nil {
 			log.Errorf("%v write http body is error %v ", GwLogFilterFlag, err)
@@ -141,7 +199,7 @@ func (m *Manager) ConfigThresholdBaseFeeHandler(writer http.ResponseWriter, requ
 	}
 }
 
-func (m *Manager) ConfigAutoCommitSwitchHandler(writer http.ResponseWriter, request *http.Request) {
+func (m *GwSchedulerManager) ConfigAutoCommitSwitchHandler(writer http.ResponseWriter, request *http.Request) {
 	autoSwitchValue := request.FormValue("autoSwitch")
 	option := request.FormValue("option")
 	log.Infof("%v get autoSwitch Config: set autoSwitch= %v ,option=%v ", GwLogFilterFlag, autoSwitchValue, option)
