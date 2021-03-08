@@ -161,6 +161,12 @@ func New(api SealingAPI, fc FeeConfig, events Events, maddr address.Address, ds 
 
 	s.unsealedInfoMap.lk.Lock() // released after initialized in .Run()
 
+	// xjgw
+	err := GwSchedulerManger.Run()
+	if err != nil {
+		panic(err)
+	}
+
 	return s
 }
 
