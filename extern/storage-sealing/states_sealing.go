@@ -189,6 +189,8 @@ func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInf
 	canSubmit, ticketWillExpired := LoopPreCommitCheckGas(sector)
 	if !canSubmit {
 		if ticketWillExpired {
+			// todo
+
 			log.Infof("%v sector preCommit ticketEpock will expired: sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
 		} else {
 			log.Infof("%v sector preCommit, can not subimt, other error, sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/lotus/api"
 	"golang.org/x/xerrors"
 	"net/http"
@@ -36,7 +35,7 @@ func LoopPreCommitCheckGas(sector SectorInfo) (bool, bool) {
 		if expectExpired {
 			return false, true
 		}
-		// todo 最终要推出
+		// todo finally exit
 		time.Sleep(30 * time.Second)
 	}
 
@@ -58,6 +57,7 @@ func LoopProveCommitCheckGas(sector SectorInfo) (bool, bool) {
 		if GwSchedulerManger.currentEpoch-sector.SeedEpoch > ProveCommitMsgMaxAge {
 			return false, true
 		}
+		// todo finally exit
 		time.Sleep(30 * time.Second)
 	}
 }
@@ -78,6 +78,8 @@ var GwSchedulerManger = &GwSchedulerManager{}
 
 func (m *GwSchedulerManager) Run() error {
 	m.closeSign = make(chan struct{}, 1)
+	// default switch open
+	m.switchOpen = true
 
 	fullNodeAPI, closer, err := GetFullNodeAPI()
 	if err != nil {
@@ -92,7 +94,6 @@ func (m *GwSchedulerManager) Run() error {
 	}
 	m.currentBaseFee = chainHead.MinTicketBlock().ParentBaseFee
 
-	// todo 环境变量获取
 	m.thresholdBaseFee = abi.NewTokenAmount(DefaultThresholdBaseFee)
 	log.Infof("%v get DefaultThresholdBaseFee is %v ", GwLogFilterFlag, m.thresholdBaseFee.String())
 
@@ -106,8 +107,8 @@ func (m *GwSchedulerManager) Run() error {
 
 	go m.runBaseFee()
 
-	// todo 时间可配置，
-	m.heartTimer = time.NewTicker(25 * time.Second)
+	// todo can config
+	m.heartTimer = time.NewTicker(30 * time.Second)
 
 	time.Sleep(2 * time.Second)
 	return nil
@@ -120,7 +121,7 @@ func (m *GwSchedulerManager) runBaseFee() abi.TokenAmount {
 			ctx, _ := context.WithTimeout(context.Background(), 25*time.Second)
 			chainHead, err := m.fullNodeApi.ChainHead(ctx)
 			if err != nil {
-				log.Errorf("%v get chainHead error %v :", GwLogFilterFlag, err)
+				log.Errorf("%v get chainHead error %v : maybe fullNNodeApi is error ", GwLogFilterFlag, err)
 				// todo check api 错误
 				continue
 			}
@@ -133,28 +134,6 @@ func (m *GwSchedulerManager) runBaseFee() abi.TokenAmount {
 			return abi.TokenAmount{}
 		}
 	}
-}
-
-func (m *GwSchedulerManager) runWebServer() error {
-
-	http.HandleFunc(SetBaseFeeThresholdApiPath, m.ConfigThresholdBaseFeeHandler)
-	http.HandleFunc(SetAutoSwitchStatusApiPath, m.ConfigAutoCommitSwitchHandler)
-
-	schedulerPort := os.Getenv(GwSchedulerPortKey)
-	if schedulerPort != "" {
-		_, err := strconv.ParseInt(schedulerPort, 10, 64)
-		if err != nil {
-			return xerrors.Errorf("%v config scheduler server port is error,value is %v ,please correct config: %v ", GwLogFilterFlag, schedulerPort, err)
-		}
-	} else {
-		schedulerPort = DefaultSchedulerPort
-	}
-
-	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%v", schedulerPort), nil)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (m *GwSchedulerManager) CanSubCommitted() bool {
@@ -175,51 +154,77 @@ func (m *GwSchedulerManager) Close() {
 
 }
 
-func (m *GwSchedulerManager) ConfigThresholdBaseFeeHandler(writer http.ResponseWriter, request *http.Request) {
-	baseFee := request.FormValue("baseFee")
-	option := request.FormValue("option")
-	log.Infof("%v get baseFee Config: set baseFee= %v ,option=%v ", GwLogFilterFlag, baseFee, option)
-	if option == "ConfigBaseFee" {
-		bigBaseFee, err := big.FromString(baseFee)
+func (m *GwSchedulerManager) runWebServer() error {
+	http.HandleFunc(SetBaseFeeThresholdApiPath, m.ConfigThresholdBaseFeeHandler)
+	http.HandleFunc(SetAutoSwitchStatusApiPath, m.ConfigAutoCommitSwitchHandler)
+	http.HandleFunc(GetAutoConfigInfo, m.GetAutoSubmitConfigHandler)
+	schedulerPort := os.Getenv(GwSchedulerPortKey)
+	if schedulerPort != "" {
+		_, err := strconv.ParseInt(schedulerPort, 10, 64)
 		if err != nil {
-			log.Errorf("%v baseFee parse big int error %v, value is %v ", GwLogFilterFlag, err, baseFee)
-		}
-		// todo
-		m.thresholdBaseFee = bigBaseFee
-		log.Infof("%v config ThresholdBaseFee is success,value is %v ", GwLogFilterFlag, m.thresholdBaseFee)
-		_, err = writer.Write([]byte(fmt.Sprintf("config thresholdBaseFee is success, value is %v ", m.thresholdBaseFee)))
-		if err != nil {
-			log.Errorf("%v write http body is error %v ", GwLogFilterFlag, err)
+			return xerrors.Errorf("%v config scheduler server port is error,value is %v ,please correct config: %v ", GwLogFilterFlag, schedulerPort, err)
 		}
 	} else {
-		_, err := writer.Write([]byte(fmt.Sprintf("request param is error,option is %v ", option)))
-		if err != nil {
-			log.Errorf("%v write http body is error %v ", GwLogFilterFlag, err)
-		}
+		schedulerPort = DefaultSchedulerPort
 	}
+
+	// only local host
+	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%v", schedulerPort), nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *GwSchedulerManager) GetAutoSubmitConfigHandler(writer http.ResponseWriter, request *http.Request) {
+	// todo check token
+	autoSubmitConfig := AutoSubmitConfig{
+		SwitchStatus:     m.switchOpen,
+		ThresholdBaseFee: m.thresholdBaseFee.String(),
+	}
+	Response(writer, StatusOK, "success", autoSubmitConfig)
+}
+
+func (m *GwSchedulerManager) ConfigThresholdBaseFeeHandler(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusForbidden)
+		return
+	}
+	thresholdBaseFeeForm := &ThresholdBaseFeeForm{}
+	err := MarshalJson(request, thresholdBaseFeeForm)
+	if err != nil {
+		Response(writer, StatusFail, fmt.Sprintf("thresholdBaseFeeForm is error please confirm data format%v ", err), nil)
+		return
+	}
+	baseFee, err := thresholdBaseFeeForm.Valid()
+	if err != nil {
+		Response(writer, StatusFail, fmt.Sprintf("request param is error please config request data  %v ", err), nil)
+		return
+	}
+	m.thresholdBaseFee = baseFee
+	log.Infof("%v config ThresholdBaseFee is success,value is %v ", GwLogFilterFlag, m.thresholdBaseFee)
+	Response(writer, StatusOK, fmt.Sprintf("success  current thresholdBaseFee is %v ", m.thresholdBaseFee), nil)
+
 }
 
 func (m *GwSchedulerManager) ConfigAutoCommitSwitchHandler(writer http.ResponseWriter, request *http.Request) {
-	autoSwitchValue := request.FormValue("autoSwitch")
-	option := request.FormValue("option")
-	log.Infof("%v get autoSwitch Config: set autoSwitch= %v ,option=%v ", GwLogFilterFlag, autoSwitchValue, option)
-	if option == "ConfigAutoSwitch" {
-		autoSwitchFlag, err := strconv.ParseInt(autoSwitchValue, 10, 64)
-		if err != nil {
-			log.Errorf("%v baseFee parse big int error %v, value is %v ", GwLogFilterFlag, err, autoSwitchValue)
-		}
-
-		// todo
-		m.switchOpen = autoSwitchFlag == 1
-		log.Infof("%v config autoSwitch is success,value is %v ", GwLogFilterFlag, m.switchOpen)
-		_, err = writer.Write([]byte(fmt.Sprintf("config autoSwitch is success, value is %v ", m.switchOpen)))
-		if err != nil {
-			log.Errorf("%v write http body is error %v ", GwLogFilterFlag, err)
-		}
-	} else {
-		_, err := writer.Write([]byte(fmt.Sprintf("request param is error,option is %v ", option)))
-		if err != nil {
-			log.Errorf("%v write http body is error %v ", GwLogFilterFlag, err)
-		}
+	if request.Method != http.MethodPost {
+		writer.WriteHeader(http.StatusForbidden)
+		return
 	}
+	autoCommitSwitchForm := &AutoCommitSwitchForm{}
+	err := MarshalJson(request, autoCommitSwitchForm)
+	if err != nil {
+		Response(writer, StatusFail, fmt.Sprintf("autoCommitSwitchFrom is error pleae config request data format%v ", err), nil)
+		return
+	}
+	err = autoCommitSwitchForm.Valid()
+	if err != nil {
+		Response(writer, StatusFail, fmt.Sprintf("request params is error %v please confirm request data ", err), nil)
+		return
+	}
+	m.switchOpen = autoCommitSwitchForm.AutoSwitch == AutoSubmitSwitchOpen
+	log.Infof("%v config AutosSwitch, current switch is %v ", GwLogFilterFlag, m.switchOpen)
+	Response(writer, StatusOK, fmt.Sprintf("success current switch status is %v ", m.switchOpen), nil)
+
 }

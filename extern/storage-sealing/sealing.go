@@ -180,6 +180,8 @@ func (m *Sealing) Run(ctx context.Context) error {
 }
 
 func (m *Sealing) Stop(ctx context.Context) error {
+	GwSchedulerManger.Close()
+
 	if err := m.terminator.Stop(ctx); err != nil {
 		return err
 	}

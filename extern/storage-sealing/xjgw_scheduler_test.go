@@ -2,10 +2,26 @@ package sealing
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/filecoin-project/go-state-types/abi"
 	"testing"
 )
+
+
+
+func TestForm(t *testing.T){
+	autoCommitSwitchForm := AutoCommitSwitchForm{}
+	err := json.Unmarshal([]byte("{\n    \"autoSwitch\":1,\n    \"option\":\"ConfigAutoSwitch\"\n}"), &autoCommitSwitchForm)
+	if err!=nil{
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(autoCommitSwitchForm.Option)
+}
+
+
+
 
 func TestGwApi(t *testing.T) {
 	api, closer, err := GetFullNodeAPI()
