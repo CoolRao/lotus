@@ -137,11 +137,13 @@ func (evt SectorPreCommit2) apply(state *SectorInfo) {
 }
 
 type SectorPreCommitLanded struct {
-	TipSet TipSetToken
+	TipSet         TipSetToken
+	PreCommitEpoch abi.ChainEpoch
 }
 
 func (evt SectorPreCommitLanded) apply(si *SectorInfo) {
 	si.PreCommitTipSet = evt.TipSet
+	si.PreCommitEpoch = evt.PreCommitEpoch
 }
 
 type SectorSealPreCommit1Failed struct{ error }

@@ -88,8 +88,9 @@ type SectorInfo struct {
 	PreCommitDeposit big.Int
 	PreCommitMessage *cid.Cid
 	PreCommitTipSet  TipSetToken
-
-	PreCommit2Fails uint64
+	PreCommitEpoch   abi.ChainEpoch
+	
+	PreCommit2Fails  uint64
 
 	// WaitSeed
 	SeedValue abi.InteractiveSealRandomness

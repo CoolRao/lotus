@@ -193,6 +193,7 @@ func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInf
 
 			log.Infof("%v sector preCommit ticketEpock will expired: sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
 		} else {
+			// todo
 			log.Infof("%v sector preCommit, can not subimt, other error, sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
 		}
 	}
@@ -326,7 +327,7 @@ func (m *Sealing) handlePreCommitWait(ctx statemachine.Context, sector SectorInf
 
 	log.Info("precommit message landed on chain: ", sector.SectorNumber)
 
-	return ctx.Send(SectorPreCommitLanded{TipSet: mw.TipSetTok})
+	return ctx.Send(SectorPreCommitLanded{TipSet: mw.TipSetTok, PreCommitEpoch: mw.Height})
 }
 
 func (m *Sealing) handleWaitSeed(ctx statemachine.Context, sector SectorInfo) error {
@@ -428,8 +429,12 @@ func (m *Sealing) handleSubmitCommit(ctx statemachine.Context, sector SectorInfo
 	canSubmit, willExpired := LoopProveCommitCheckGas(sector)
 	if !canSubmit {
 		if willExpired {
+			// todo
+
 			log.Infof("%v sector proveCommit ticketEpock will expired: sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
 		} else {
+			// todo
+
 			log.Infof("%v sector proveCommit, can not subimt, other error, sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
 		}
 	}

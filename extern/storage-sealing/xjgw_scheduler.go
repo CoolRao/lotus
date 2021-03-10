@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/api"
+	builtin0 "github.com/filecoin-project/specs-actors/actors/builtin"
 	"golang.org/x/xerrors"
 	"net/http"
 	"os"
@@ -14,10 +15,15 @@ import (
 	"time"
 )
 
-// ticket过期时间, 还剩三分之一时必须进行处理的操作
-func sectorExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+func sectorPreCommitExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+	// todo maybe more precise
+	return epoch-sector.TicketEpoch > builtin0.EpochsInDay
+}
 
-	return epoch-sector.TicketEpoch > MaxTicketAge-(MaxTicketAge/3)
+func sectorProveCommitExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+	// todo,about 5 hour
+	return epoch-sector.PreCommitEpoch > builtin0.EpochsInDay-500
+
 }
 
 /**
@@ -27,16 +33,21 @@ PreCommit 提交处理
 	第二个代表：扇区即将到期，必须进行处理
 */
 func LoopPreCommitCheckGas(sector SectorInfo) (bool, bool) {
+	count := 1
 	for {
 		if GwSchedulerManger.CanSubCommitted() {
 			return true, false
 		}
-		expectExpired := sectorExpectExpired(sector, GwSchedulerManger.currentEpoch)
+		expectExpired := sectorPreCommitExpectExpired(sector, GwSchedulerManger.currentEpoch)
 		if expectExpired {
 			return false, true
 		}
-		// todo finally exit
-		time.Sleep(30 * time.Second)
+		// other error, timeout
+		if count > builtin0.EpochsInDay+100 {
+			return false, false
+		}
+		time.Sleep(builtin0.EpochDurationSeconds * time.Second)
+		count++
 	}
 
 }
@@ -49,16 +60,19 @@ ProveCommit  提交处理
 */
 
 func LoopProveCommitCheckGas(sector SectorInfo) (bool, bool) {
+	count := 1
 	for {
 		if GwSchedulerManger.CanSubCommitted() {
 			return true, false
 		}
-		// todo  confirm ProveCommitMsgMaxAge
-		if GwSchedulerManger.currentEpoch-sector.SeedEpoch > ProveCommitMsgMaxAge {
+		if sectorProveCommitExpectExpired(sector, GwSchedulerManger.currentEpoch) {
 			return false, true
 		}
-		// todo finally exit
-		time.Sleep(30 * time.Second)
+		if count > builtin0.EpochsInDay {
+			return false, false
+		}
+		time.Sleep(builtin0.EpochDurationSeconds * time.Second)
+		count++
 	}
 }
 
@@ -108,7 +122,7 @@ func (m *GwSchedulerManager) Run() error {
 	go m.runBaseFee()
 
 	// todo can config
-	m.heartTimer = time.NewTicker(30 * time.Second)
+	m.heartTimer = time.NewTicker(builtin0.EpochDurationSeconds * time.Second)
 
 	time.Sleep(2 * time.Second)
 	return nil
