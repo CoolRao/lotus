@@ -50,4 +50,5 @@ func (a AutoCommitSwitchForm) Valid() error {
 type AutoSubmitConfig struct {
 	SwitchStatus     bool   `json:"switchStatus"`
 	ThresholdBaseFee string `json:"thresholdBaseFee"`
+	CurrentBaseFee   string `json:"currentBaseFee"`
 }

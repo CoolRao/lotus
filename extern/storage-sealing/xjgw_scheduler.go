@@ -181,6 +181,7 @@ func (m *GwSchedulerManager) GetAutoSubmitConfigHandler(writer http.ResponseWrit
 	autoSubmitConfig := AutoSubmitConfig{
 		SwitchStatus:     m.switchOpen,
 		ThresholdBaseFee: m.thresholdBaseFee.String(),
+		CurrentBaseFee:   m.currentBaseFee.String(),
 	}
 	Response(writer, StatusOK, "success", autoSubmitConfig)
 }
