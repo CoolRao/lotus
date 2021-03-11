@@ -172,12 +172,12 @@ func (a *GatewayAPI) ChainGetTipSetByHeight(ctx context.Context, h abi.ChainEpoc
 		ts = gts
 	}
 
-	// Check if the tipset key refers to a tipset that's too far in the past
+	// CanSubCommitted if the tipset key refers to a tipset that's too far in the past
 	if err := a.checkTipset(ts); err != nil {
 		return nil, err
 	}
 
-	// Check if the height is too far in the past
+	// CanSubCommitted if the height is too far in the past
 	if err := a.checkTipsetHeight(ts, h); err != nil {
 		return nil, err
 	}

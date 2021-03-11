@@ -207,7 +207,7 @@ func (p *DealPublisher) processNewDeal(pdeal *pendingDeal) {
 }
 
 func (p *DealPublisher) waitForMoreDeals() {
-	// Check if we're already waiting for deals
+	// CanSubCommitted if we're already waiting for deals
 	if !p.publishPeriodStart.IsZero() {
 		elapsed := time.Since(p.publishPeriodStart)
 		log.Infof("%s elapsed of / %s until publish deals queue is published",

@@ -218,7 +218,7 @@ func TestCheckVoucherValid(t *testing.T) {
 			// Create the test case signed voucher
 			sv := createTestVoucher(t, ch, tcase.voucherLane, tcase.voucherNonce, tcase.voucherAmount, tcase.key)
 
-			// Check the voucher's validity
+			// CanSubCommitted the voucher's validity
 			err = mgr.CheckVoucherValid(ctx, ch, sv)
 			if tcase.expectError {
 				require.Error(t, err)
@@ -318,7 +318,7 @@ func TestAddVoucherDelta(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, delta.Int64(), 2)
 
-	// Check that delta is correct when there's an existing voucher
+	// CanSubCommitted that delta is correct when there's an existing voucher
 	nonce++
 	voucherAmount = big.NewInt(5)
 	sv = createTestVoucher(t, s.ch, voucherLane, nonce, voucherAmount, s.fromKeyPrivate)
@@ -326,7 +326,7 @@ func TestAddVoucherDelta(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, delta.Int64(), 3)
 
-	// Check that delta is correct when voucher added to a different lane
+	// CanSubCommitted that delta is correct when voucher added to a different lane
 	nonce = uint64(1)
 	voucherAmount = big.NewInt(6)
 	voucherLane = uint64(2)
@@ -611,20 +611,20 @@ func TestCheckSpendable(t *testing.T) {
 	}
 	s.mock.setCallResponse(successResponse)
 
-	// Check that spendable is true
+	// CanSubCommitted that spendable is true
 	secret := []byte("secret")
 	spendable, err := s.mgr.CheckVoucherSpendable(ctx, s.ch, voucher, secret, nil)
 	require.NoError(t, err)
 	require.True(t, spendable)
 
-	// Check that the secret was passed through correctly
+	// CanSubCommitted that the secret was passed through correctly
 	lastCall := s.mock.getLastCall()
 	var p paych2.UpdateChannelStateParams
 	err = p.UnmarshalCBOR(bytes.NewReader(lastCall.Params))
 	require.NoError(t, err)
 	require.Equal(t, secret, p.Secret)
 
-	// Check that if VM call returns non-success exit code, spendable is false
+	// CanSubCommitted that if VM call returns non-success exit code, spendable is false
 	s.mock.setCallResponse(&api.InvocResult{
 		MsgRct: &types.MessageReceipt{
 			ExitCode: 1,
@@ -640,7 +640,7 @@ func TestCheckSpendable(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, spendable)
 
-	// Check that voucher is no longer spendable once it has been submitted
+	// CanSubCommitted that voucher is no longer spendable once it has been submitted
 	_, err = s.mgr.SubmitVoucher(ctx, s.ch, voucher, nil, nil)
 	require.NoError(t, err)
 
@@ -671,7 +671,7 @@ func TestSubmitVoucher(t *testing.T) {
 	submitCid, err := s.mgr.SubmitVoucher(ctx, s.ch, voucher, secret, nil)
 	require.NoError(t, err)
 
-	// Check that the secret was passed through correctly
+	// CanSubCommitted that the secret was passed through correctly
 	msg := s.mock.pushedMessages(submitCid)
 	var p paych2.UpdateChannelStateParams
 	err = p.UnmarshalCBOR(bytes.NewReader(msg.Message.Params))

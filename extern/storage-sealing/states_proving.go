@@ -42,7 +42,7 @@ func (m *Sealing) handleTerminating(ctx statemachine.Context, sector SectorInfo)
 	//  * If not, goto removing
 	// * Add to termination queue
 	// * Wait for message to land on-chain
-	// * Check for correct termination
+	// * CanSubCommitted for correct termination
 	// * wait for expiration (+winning lookback?)
 
 	si, err := m.api.StateSectorGetInfo(ctx.Context(), m.maddr, sector.SectorNumber, nil)

@@ -378,7 +378,7 @@ var provingDeadlineInfoCmd = &cli.Command{
 
 var provingCheckProvableCmd = &cli.Command{
 	Name:      "check",
-	Usage:     "Check sectors provable",
+	Usage:     "CanSubCommitted sectors provable",
 	ArgsUsage: "<deadlineIdx>",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{

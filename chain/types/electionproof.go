@@ -185,7 +185,7 @@ func (ep *ElectionProof) ComputeWinCount(power BigInt, totalPower BigInt) int64 
 	// Steps:
 	//  1. calculate λ=power*E/totalPower
 	//  2. calculate elam = exp(-λ)
-	//  3. Check how many times we win:
+	//  3. CanSubCommitted how many times we win:
 	//    j = 0
 	//    pmf = elam
 	//    rhs = 1 - pmf

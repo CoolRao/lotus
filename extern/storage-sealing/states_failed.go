@@ -167,7 +167,7 @@ func (m *Sealing) handlePreCommitFailed(ctx statemachine.Context, sector SectorI
 }
 
 func (m *Sealing) handleComputeProofFailed(ctx statemachine.Context, sector SectorInfo) error {
-	// TODO: Check sector files
+	// TODO: CanSubCommitted sector files
 
 	if err := failedCooldown(ctx, sector); err != nil {
 		return err
@@ -281,7 +281,7 @@ func (m *Sealing) handleCommitFailed(ctx statemachine.Context, sector SectorInfo
 		}
 	}
 
-	// TODO: Check sector files
+	// TODO: CanSubCommitted sector files
 
 	if err := failedCooldown(ctx, sector); err != nil {
 		return err
@@ -291,7 +291,7 @@ func (m *Sealing) handleCommitFailed(ctx statemachine.Context, sector SectorInfo
 }
 
 func (m *Sealing) handleFinalizeFailed(ctx statemachine.Context, sector SectorInfo) error {
-	// TODO: Check sector files
+	// TODO: CanSubCommitted sector files
 
 	if err := failedCooldown(ctx, sector); err != nil {
 		return err

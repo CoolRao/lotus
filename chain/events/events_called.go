@@ -124,7 +124,7 @@ func (e *hcEvents) processHeadChangeEvent(rev, app []*types.TipSet) error {
 	}
 
 	for _, ts := range app {
-		// Check if the head change caused any state changes that we were
+		// CanSubCommitted if the head change caused any state changes that we were
 		// waiting for
 		stateChanges := e.watcherEvents.checkStateChanges(e.lastTs, ts)
 
@@ -134,7 +134,7 @@ func (e *hcEvents) processHeadChangeEvent(rev, app []*types.TipSet) error {
 			e.queueForConfidence(tid, data, e.lastTs, ts)
 		}
 
-		// Check if the head change included any new message calls
+		// CanSubCommitted if the head change included any new message calls
 		newCalls, err := e.messageEvents.checkNewCalls(ts)
 		if err != nil {
 			return err
@@ -306,7 +306,7 @@ func (e *hcEvents) onHeadChanged(check CheckFunc, hnd EventHandler, rev RevertHa
 	e.lk.Lock()
 	defer e.lk.Unlock()
 
-	// Check if the event has already occurred
+	// CanSubCommitted if the event has already occurred
 	ts, err := e.tsc.best()
 	if err != nil {
 		return 0, xerrors.Errorf("error getting best tipset: %w", err)
@@ -471,7 +471,7 @@ func newMessageEvents(ctx context.Context, hcAPI headChangeAPI, cs eventAPI) mes
 	}
 }
 
-// Check if there are any new actor calls
+// CanSubCommitted if there are any new actor calls
 func (me *messageEvents) checkNewCalls(ts *types.TipSet) (map[triggerID]eventData, error) {
 	pts, err := me.cs.ChainGetTipSet(me.ctx, ts.Parents()) // we actually care about messages in the parent tipset here
 	if err != nil {

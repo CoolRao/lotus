@@ -210,7 +210,7 @@ func (ca *channelAccessor) checkVoucherValidUnlocked(ctx context.Context, ch add
 		return nil, err
 	}
 
-	// Check the voucher against the highest known voucher nonce / value
+	// CanSubCommitted the voucher against the highest known voucher nonce / value
 	laneStates, err := ca.laneState(pchState, ch)
 	if err != nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (ca *channelAccessor) checkVoucherSpendable(ctx context.Context, ch address
 		return false, err
 	}
 
-	// Check if voucher has already been submitted
+	// CanSubCommitted if voucher has already been submitted
 	submitted, err := ci.wasVoucherSubmitted(sv)
 	if err != nil {
 		return false, err
@@ -338,7 +338,7 @@ func (ca *channelAccessor) addVoucherUnlocked(ctx context.Context, ch address.Ad
 		return types.BigInt{}, err
 	}
 
-	// Check if the voucher has already been added
+	// CanSubCommitted if the voucher has already been added
 	for _, v := range ci.Vouchers {
 		eq, err := cborutil.Equals(sv, v.Voucher)
 		if err != nil {
@@ -352,7 +352,7 @@ func (ca *channelAccessor) addVoucherUnlocked(ctx context.Context, ch address.Ad
 
 	}
 
-	// Check voucher validity
+	// CanSubCommitted voucher validity
 	laneStates, err := ca.checkVoucherValidUnlocked(ctx, ch, sv)
 	if err != nil {
 		return types.NewInt(0), err
@@ -401,7 +401,7 @@ func (ca *channelAccessor) submitVoucher(ctx context.Context, ch address.Address
 
 	// If the channel has the voucher
 	if has {
-		// Check that the voucher hasn't already been submitted
+		// CanSubCommitted that the voucher hasn't already been submitted
 		submitted, err := ci.wasVoucherSubmitted(sv)
 		if err != nil {
 			return cid.Undef, err
@@ -493,7 +493,7 @@ func (ca *channelAccessor) laneState(state paych.State, ch address.Address) (map
 			return nil, xerrors.Errorf("paych merges not handled yet")
 		}
 
-		// Check if there is an existing laneState in the payment channel
+		// CanSubCommitted if there is an existing laneState in the payment channel
 		// for this voucher's lane
 		ls, ok := laneStates[v.Voucher.Lane]
 

@@ -102,7 +102,7 @@ func envForRepoDeprecation(t repo.RepoType) string {
 }
 
 func GetAPIInfo(ctx *cli.Context, t repo.RepoType) (cliutil.APIInfo, error) {
-	// Check if there was a flag passed with the listen address of the API
+	// CanSubCommitted if there was a flag passed with the listen address of the API
 	// server (only used by the tests)
 	apiFlag := flagForAPI(t)
 	if ctx.IsSet(apiFlag) {

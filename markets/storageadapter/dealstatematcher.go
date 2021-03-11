@@ -41,7 +41,7 @@ func (mc *dealStateMatcher) matcher(ctx context.Context, dealID abi.DealID) even
 		mc.lk.Lock()
 		defer mc.lk.Unlock()
 
-		// Check if we've already fetched the DealStates for the given tipsets
+		// CanSubCommitted if we've already fetched the DealStates for the given tipsets
 		if mc.oldTsk == oldTs.Key() && mc.newTsk == newTs.Key() {
 			// If we fetch the DealStates and there is no difference between
 			// them, they are stored as nil. So we can just bail out.
@@ -49,7 +49,7 @@ func (mc *dealStateMatcher) matcher(ctx context.Context, dealID abi.DealID) even
 				return false, nil, nil
 			}
 
-			// Check if the deal state has changed for the target ID
+			// CanSubCommitted if the deal state has changed for the target ID
 			return dealStateChangedForID(ctx, mc.oldDealStateRoot, mc.newDealStateRoot)
 		}
 

@@ -78,7 +78,7 @@ func (mgr *SectorCommittedManager) OnDealSectorPreCommitted(ctx context.Context,
 			return true, false, nil
 		}
 
-		// Check that precommits which landed between when the deal was published
+		// CanSubCommitted that precommits which landed between when the deal was published
 		// and now don't already contain the deal we care about.
 		// (this can happen when the precommit lands vary quickly (in tests), or
 		// when the client node was down after the deal was published, and when
@@ -117,7 +117,7 @@ func (mgr *SectorCommittedManager) OnDealSectorPreCommitted(ctx context.Context,
 	// if the chain reaches that epoch
 	timeoutEpoch := proposal.StartEpoch + 1
 
-	// Check if the message params included the deal ID we're looking for.
+	// CanSubCommitted if the message params included the deal ID we're looking for.
 	called := func(msg *types.Message, rec *types.MessageReceipt, ts *types.TipSet, curH abi.ChainEpoch) (more bool, err error) {
 		defer func() {
 			if err != nil {
@@ -150,7 +150,7 @@ func (mgr *SectorCommittedManager) OnDealSectorPreCommitted(ctx context.Context,
 			return false, err
 		}
 
-		// Check through the deal IDs associated with this message
+		// CanSubCommitted through the deal IDs associated with this message
 		for _, did := range params.DealIDs {
 			if did == res.DealID {
 				// Found the deal ID in this message. Callback with the sector ID.

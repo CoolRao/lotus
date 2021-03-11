@@ -712,13 +712,13 @@ func TestPaychGetMergeAddFunds(t *testing.T) {
 	// sent
 	require.Equal(t, 2, mock.pushedMessageCount())
 
-	// Check create message amount is correct
+	// CanSubCommitted create message amount is correct
 	createMsg := mock.pushedMessages(createMsgCid)
 	require.Equal(t, from, createMsg.Message.From)
 	require.Equal(t, lotusinit.Address, createMsg.Message.To)
 	require.Equal(t, createAmt, createMsg.Message.Value)
 
-	// Check merged add funds amount is the sum of the individual
+	// CanSubCommitted merged add funds amount is the sum of the individual
 	// amounts
 	addFundsMsg := mock.pushedMessages(addFundsMcid1)
 	require.Equal(t, from, addFundsMsg.Message.From)
@@ -809,13 +809,13 @@ func TestPaychGetMergeAddFundsCtxCancelOne(t *testing.T) {
 	// sent
 	require.Equal(t, 2, mock.pushedMessageCount())
 
-	// Check create message amount is correct
+	// CanSubCommitted create message amount is correct
 	createMsg := mock.pushedMessages(createMsgCid)
 	require.Equal(t, from, createMsg.Message.From)
 	require.Equal(t, lotusinit.Address, createMsg.Message.To)
 	require.Equal(t, createAmt, createMsg.Message.Value)
 
-	// Check merged add funds amount only includes the second add funds amount
+	// CanSubCommitted merged add funds amount only includes the second add funds amount
 	// (because first was cancelled)
 	addFundsMsg := mock.pushedMessages(addFundsMcid2)
 	require.Equal(t, from, addFundsMsg.Message.From)
@@ -890,7 +890,7 @@ func TestPaychGetMergeAddFundsCtxCancelAll(t *testing.T) {
 	// Make sure that just the create channel message was sent
 	require.Equal(t, 1, mock.pushedMessageCount())
 
-	// Check create message amount is correct
+	// CanSubCommitted create message amount is correct
 	createMsg := mock.pushedMessages(createMsgCid)
 	require.Equal(t, from, createMsg.Message.From)
 	require.Equal(t, lotusinit.Address, createMsg.Message.To)

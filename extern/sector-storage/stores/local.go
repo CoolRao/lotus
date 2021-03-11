@@ -159,7 +159,7 @@ func (st *Local) OpenPath(ctx context.Context, p string) error {
 		return xerrors.Errorf("unmarshalling storage metadata for %s: %w", p, err)
 	}
 
-	// TODO: Check existing / dedupe
+	// TODO: CanSubCommitted existing / dedupe
 
 	out := &path{
 		local: p,
@@ -458,7 +458,7 @@ func (st *Local) AcquireSector(ctx context.Context, sid storage.SectorRef, exist
 				continue
 			}
 
-			// TODO: Check free space
+			// TODO: CanSubCommitted free space
 
 			best = p.sectorPath(sid.ID, fileType)
 			bestID = si.ID

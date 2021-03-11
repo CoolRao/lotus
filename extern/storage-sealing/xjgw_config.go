@@ -19,6 +19,9 @@ const DefaultSchedulerPort = "9999"
 
 // 调度默认端口环境变量 key
 const GwSchedulerPortKey = "GwSchedulerServerPort"
+const GwDefaultThresholdBaseFeeKey = "GwDefaultThresholdBaseFee"
+const GwDebugKey = "GwDebug"
+
 
 // 接口业务状态
 const StatusOK = 1

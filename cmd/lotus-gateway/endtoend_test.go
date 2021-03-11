@@ -58,7 +58,7 @@ func TestWalletMsig(t *testing.T) {
 	fullWalletAddr, err := full.WalletDefaultAddress(ctx)
 	require.NoError(t, err)
 
-	// Check the full node's wallet balance from the lite node
+	// CanSubCommitted the full node's wallet balance from the lite node
 	balance, err := lite.WalletBalance(ctx, fullWalletAddr)
 	require.NoError(t, err)
 	fmt.Println(balance)

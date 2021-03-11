@@ -113,7 +113,7 @@ func newMergedFundsReq(reqs []*fundsReq) *mergedFundsReq {
 
 // Called when a fundsReq is cancelled
 func (m *mergedFundsReq) checkActive() {
-	// Check if there are any active fundsReqs
+	// CanSubCommitted if there are any active fundsReqs
 	for _, r := range m.reqs {
 		if r.isActive() {
 			return

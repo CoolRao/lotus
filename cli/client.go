@@ -426,7 +426,7 @@ var clientDealCmd = &cli.Command{
 			ref.TransferType = storagemarket.TTManual
 		}
 
-		// Check if the address is a verified client
+		// CanSubCommitted if the address is a verified client
 		dcap, err := api.StateVerifiedClientStatus(ctx, a, types.EmptyTSK)
 		if err != nil {
 			return err
@@ -908,7 +908,7 @@ var clientFindCmd = &cli.Command{
 		defer closer()
 		ctx := ReqContext(cctx)
 
-		// Check if we already have this data locally
+		// CanSubCommitted if we already have this data locally
 
 		has, err := api.ClientHasLocal(ctx, file)
 		if err != nil {
@@ -1001,7 +1001,7 @@ var clientRetrieveCmd = &cli.Command{
 			return err
 		}
 
-		// Check if we already have this data locally
+		// CanSubCommitted if we already have this data locally
 
 		/*has, err := api.ClientHasLocal(ctx, file)
 		if err != nil {

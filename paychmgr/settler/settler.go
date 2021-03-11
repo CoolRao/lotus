@@ -111,11 +111,11 @@ func (pcs *paymentChannelSettler) revertHandler(ctx context.Context, ts *types.T
 }
 
 func (pcs *paymentChannelSettler) matcher(msg *types.Message) (matched bool, err error) {
-	// Check if this is a settle payment channel message
+	// CanSubCommitted if this is a settle payment channel message
 	if msg.Method != paych.Methods.Settle {
 		return false, nil
 	}
-	// Check if this payment channel is of concern to this node (i.e. tracked in payment channel store),
+	// CanSubCommitted if this payment channel is of concern to this node (i.e. tracked in payment channel store),
 	// and its inbound (i.e. we're getting vouchers that we may need to redeem)
 	trackedAddresses, err := pcs.api.PaychList(pcs.ctx)
 	if err != nil {

@@ -396,7 +396,7 @@ func (cs *ChainStore) MaybeTakeHeavierTipSet(ctx context.Context, ts *types.TipS
 	return nil
 }
 
-// Check if the two tipsets have a fork length above `ForkLengthThreshold`.
+// CanSubCommitted if the two tipsets have a fork length above `ForkLengthThreshold`.
 // `synced` is the head of the chain we are currently synced to and `external`
 // is the incoming tipset potentially belonging to a forked chain. It assumes
 // the external chain has already been validated and available in the ChainStore.

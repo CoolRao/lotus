@@ -639,7 +639,7 @@ var mpoolConfig = &cli.Command{
 
 var mpoolGasPerfCmd = &cli.Command{
 	Name:  "gas-perf",
-	Usage: "Check gas performance of messages in mempool",
+	Usage: "CanSubCommitted gas performance of messages in mempool",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "all",

@@ -307,7 +307,7 @@ func (pm *Manager) trackInboundChannel(ctx context.Context, ch address.Address) 
 	pm.lk.Lock()
 	defer pm.lk.Unlock()
 
-	// Check if channel is in store
+	// CanSubCommitted if channel is in store
 	ci, err := pm.store.ByAddress(ch)
 	if err == nil {
 		// Channel is in store, so it's already being tracked
@@ -325,7 +325,7 @@ func (pm *Manager) trackInboundChannel(ctx context.Context, ch address.Address) 
 		return nil, err
 	}
 
-	// Check that channel To address is in wallet
+	// CanSubCommitted that channel To address is in wallet
 	to := stateCi.Control // Inbound channel so To addr is Control (this node)
 	toKey, err := pm.pchapi.StateAccountKey(ctx, to, types.EmptyTSK)
 	if err != nil {

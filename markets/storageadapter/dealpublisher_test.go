@@ -226,13 +226,13 @@ func checkPublishedDeals(t *testing.T, dpapi *dpAPI, dealsToPublish []market.Cli
 		stateMinerInfoAddr := <-dpapi.stateMinerInfoCalls
 		require.Equal(t, getProviderActor(t), stateMinerInfoAddr)
 
-		// Check the fields of the message that was sent
+		// CanSubCommitted the fields of the message that was sent
 		msg := <-dpapi.pushedMsgs
 		require.Equal(t, getWorkerActor(t), msg.From)
 		require.Equal(t, market.Address, msg.To)
 		require.Equal(t, market.Methods.PublishStorageDeals, msg.Method)
 
-		// Check that the expected number of deals was included in the message
+		// CanSubCommitted that the expected number of deals was included in the message
 		var params market2.PublishStorageDealsParams
 		err := params.UnmarshalCBOR(bytes.NewReader(msg.Params))
 		require.NoError(t, err)

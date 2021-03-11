@@ -217,13 +217,13 @@ func TestPaymentChannelVouchers(t *testing.T) {
 	// creator: paych voucher list <channel> --export
 	list := creatorCLI.RunCmd("paych", "voucher", "list", "--export", chAddr.String())
 
-	// Check that voucher list output is correct on creator
+	// CanSubCommitted that voucher list output is correct on creator
 	checkVoucherOutput(t, list, vouchers)
 
 	// creator: paych voucher best-spendable <channel>
 	bestSpendable := creatorCLI.RunCmd("paych", "voucher", "best-spendable", "--export", chAddr.String())
 
-	// Check that best spendable output is correct on creator
+	// CanSubCommitted that best spendable output is correct on creator
 	bestVouchers := []voucherSpec{
 		{serialized: voucher1, lane: 0, amt: voucherAmt1},
 		{serialized: voucher4, lane: 5, amt: voucherAmt4},
@@ -245,13 +245,13 @@ func TestPaymentChannelVouchers(t *testing.T) {
 	// receiver: paych voucher list <channel> --export
 	list = receiverCLI.RunCmd("paych", "voucher", "list", "--export", chAddr.String())
 
-	// Check that voucher list output is correct on receiver
+	// CanSubCommitted that voucher list output is correct on receiver
 	checkVoucherOutput(t, list, vouchers)
 
 	// receiver: paych voucher best-spendable <channel>
 	bestSpendable = receiverCLI.RunCmd("paych", "voucher", "best-spendable", "--export", chAddr.String())
 
-	// Check that best spendable output is correct on receiver
+	// CanSubCommitted that best spendable output is correct on receiver
 	bestVouchers = []voucherSpec{
 		{serialized: voucher1, lane: 0, amt: voucherAmt1},
 		{serialized: voucher4, lane: 5, amt: voucherAmt4},
@@ -264,7 +264,7 @@ func TestPaymentChannelVouchers(t *testing.T) {
 	// receiver: paych voucher best-spendable <channel>
 	bestSpendable = receiverCLI.RunCmd("paych", "voucher", "best-spendable", "--export", chAddr.String())
 
-	// Check that best spendable output no longer includes submitted voucher
+	// CanSubCommitted that best spendable output no longer includes submitted voucher
 	bestVouchers = []voucherSpec{
 		{serialized: voucher4, lane: 5, amt: voucherAmt4},
 	}
@@ -278,7 +278,7 @@ func TestPaymentChannelVouchers(t *testing.T) {
 	// receiver: paych voucher best-spendable <channel>
 	bestSpendable = receiverCLI.RunCmd("paych", "voucher", "best-spendable", "--export", chAddr.String())
 
-	// Check that best spendable output still includes the voucher for 80
+	// CanSubCommitted that best spendable output still includes the voucher for 80
 	bestVouchers = []voucherSpec{
 		{serialized: voucher4, lane: 5, amt: voucherAmt4},
 	}
@@ -291,7 +291,7 @@ func TestPaymentChannelVouchers(t *testing.T) {
 	// receiver: paych voucher best-spendable <channel>
 	bestSpendable = receiverCLI.RunCmd("paych", "voucher", "best-spendable", "--export", chAddr.String())
 
-	// Check that best spendable output no longer includes submitted voucher
+	// CanSubCommitted that best spendable output no longer includes submitted voucher
 	bestVouchers = []voucherSpec{}
 	checkVoucherOutput(t, bestSpendable, bestVouchers)
 }

@@ -60,10 +60,10 @@ var consensusCheckCmd = &cli.Command{
    Calculate the expected tipset height and look back 10 tipsets
    lotus-shed consensus check --height @expected --lookback 10
 
-   Check if nodes all share a common genesis
+   CanSubCommitted if nodes all share a common genesis
    lotus-shed consensus check --height 0
 
-   Check that all nodes agree upon the tipset for 1day post genesis
+   CanSubCommitted that all nodes agree upon the tipset for 1day post genesis
    lotus-shed consensus check --height 2880 --lookback 0
 	`,
 	Flags: []cli.Flag{

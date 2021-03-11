@@ -229,7 +229,7 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 		_, complete = p.posts.get(di)
 	}
 
-	// Check if the chain is above the Challenge height for the post window
+	// CanSubCommitted if the chain is above the Challenge height for the post window
 	if newTS.Height() < di.Challenge {
 		return
 	}
@@ -249,7 +249,7 @@ func (p *proveHandler) processPostResult(res *postResult) {
 		log.Warnf("Aborted window post Proving (Deadline: %+v)", di)
 		p.api.onAbort(res.ts, di)
 
-		// Check if the current post has already been aborted
+		// CanSubCommitted if the current post has already been aborted
 		if p.current == res.currPost {
 			// If the current post was not already aborted, setting it to nil
 			// marks it as complete so that a new post can be started
@@ -452,17 +452,17 @@ func (s *submitHandler) submitIfReady(ctx context.Context, advance *types.TipSet
 		return
 	}
 
-	// Check if we're already submitting, or already completed submit
+	// CanSubCommitted if we're already submitting, or already completed submit
 	if pw.submitState != SubmitStateStart {
 		return
 	}
 
-	// Check if we've reached the confidence height to submit
+	// CanSubCommitted if we've reached the confidence height to submit
 	if advance.Height() < pw.di.Open+SubmitConfidence {
 		return
 	}
 
-	// Check if the proofs have been generated for this deadline
+	// CanSubCommitted if the proofs have been generated for this deadline
 	posts, ok := s.posts.get(pw.di)
 	if !ok {
 		return

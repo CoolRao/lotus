@@ -142,7 +142,7 @@ func (c *client) doRequest(
 	return nil, xerrors.Errorf(errString)
 }
 
-// Process and validate response. Check the status, the integrity of the
+// Process and validate response. CanSubCommitted the status, the integrity of the
 // information returned, and that it matches the request. Extract the information
 // into a `validatedResponse` for the external-facing APIs to select what they
 // need.
@@ -180,7 +180,7 @@ func (c *client) processResponse(req *Request, res *Response, tipsets []*types.T
 
 	validRes := &validatedResponse{}
 	if options.IncludeHeaders {
-		// Check for valid block sets and extract them into `TipSet`s.
+		// CanSubCommitted for valid block sets and extract them into `TipSet`s.
 		validRes.tipsets = make([]*types.TipSet, resLength)
 		for i := 0; i < resLength; i++ {
 			if res.Chain[i] == nil {
@@ -199,12 +199,12 @@ func (c *client) processResponse(req *Request, res *Response, tipsets []*types.T
 			}
 		}
 
-		// Check that the returned head matches the one requested.
+		// CanSubCommitted that the returned head matches the one requested.
 		if !types.CidArrsEqual(validRes.tipsets[0].Cids(), req.Head) {
 			return nil, xerrors.Errorf("returned chain head does not match request")
 		}
 
-		// Check `TipSet`s are connected (valid chain).
+		// CanSubCommitted `TipSet`s are connected (valid chain).
 		for i := 0; i < len(validRes.tipsets)-1; i++ {
 			if validRes.tipsets[i].IsChildOf(validRes.tipsets[i+1]) == false {
 				return nil, fmt.Errorf("tipsets are not connected at height (head - %d)/(head - %d)",

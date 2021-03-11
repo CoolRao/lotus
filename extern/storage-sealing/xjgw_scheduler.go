@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/lotus/api"
 	builtin0 "github.com/filecoin-project/specs-actors/actors/builtin"
+	miner3 "github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
 	"golang.org/x/xerrors"
 	"net/http"
 	"os"
@@ -15,12 +17,22 @@ import (
 	"time"
 )
 
+var GwDebug = false
+
 func sectorPreCommitExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+	if GwDebug {
+		log.Debugf("%v preCommitExpectExpired: currentEpoch： %v ,TicketEpock: %v ", GwLogFilterFlag, epoch, sector.TicketEpoch)
+		return epoch-sector.TicketEpoch > 100+miner3.ChainFinality
+	}
 	// todo maybe more precise
-	return epoch-sector.TicketEpoch > builtin0.EpochsInDay
+	return epoch-sector.TicketEpoch > builtin0.EpochsInDay+miner3.ChainFinality-500
 }
 
 func sectorProveCommitExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+	if GwDebug {
+		log.Debugf("%v proveCommitExpectExpired: currentEpoch： %v ,PreCommitEpoch: %v ", GwLogFilterFlag, epoch, sector.PreCommitEpoch)
+		return epoch-sector.PreCommitEpoch > 100+miner3.ChainFinality
+	}
 	// todo,about 5 hour
 	return epoch-sector.PreCommitEpoch > builtin0.EpochsInDay-500
 
@@ -91,6 +103,20 @@ type GwSchedulerManager struct {
 var GwSchedulerManger = &GwSchedulerManager{}
 
 func (m *GwSchedulerManager) Run() error {
+
+	gwDebug := os.Getenv(GwDebugKey)
+	if gwDebug == "1" {
+		GwDebug = true
+	}
+	log.Warnf("%v gwdebug info,gwdebug value is %v ", GwLogFilterFlag, GwDebug)
+
+	baseFee := os.Getenv(GwDefaultThresholdBaseFeeKey)
+	baseFeeValue, err := big.FromString(baseFee)
+	if err != nil {
+		return xerrors.Errorf("%v GwDefaultThresholdBaseFeeKey must config, please set value %v ", GwLogFilterFlag, err)
+	}
+	m.thresholdBaseFee = baseFeeValue
+
 	m.closeSign = make(chan struct{}, 1)
 	// default switch open
 	m.switchOpen = true
@@ -216,7 +242,9 @@ func (m *GwSchedulerManager) ConfigThresholdBaseFeeHandler(writer http.ResponseW
 		Response(writer, StatusFail, fmt.Sprintf("request param is error please config request data  %v ", err), nil)
 		return
 	}
+	m.baseFeeLock.Lock()
 	m.thresholdBaseFee = baseFee
+	m.baseFeeLock.Unlock()
 	log.Infof("%v config ThresholdBaseFee is success,value is %v ", GwLogFilterFlag, m.thresholdBaseFee)
 	Response(writer, StatusOK, fmt.Sprintf("success  current thresholdBaseFee is %v ", m.thresholdBaseFee), nil)
 

@@ -354,7 +354,7 @@ func createMultisigAccount(ctx context.Context, bs bstore.Blockstore, cst cbor.I
 			return fmt.Errorf("no registered key ID for signer: %s", e)
 		}
 
-		// Check if actor already exists
+		// CanSubCommitted if actor already exists
 		_, err := state.GetActor(e)
 		if err == nil {
 			signers = append(signers, idAddress)

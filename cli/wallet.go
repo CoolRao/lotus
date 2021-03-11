@@ -595,12 +595,12 @@ var walletMarketWithdraw = &cli.Command{
 			amt = abi.TokenAmount(f)
 		}
 
-		// Check the amount is positive
+		// CanSubCommitted the amount is positive
 		if amt.IsZero() || amt.LessThan(big.Zero()) {
 			return xerrors.Errorf("amount must be > 0")
 		}
 
-		// Check there are enough available funds
+		// CanSubCommitted there are enough available funds
 		if amt.GreaterThan(avail) {
 			msg := fmt.Sprintf("can't withdraw more funds than available; requested: %s", types.FIL(amt))
 			return notEnoughErr(msg)

@@ -392,7 +392,7 @@ var paychVoucherCreateCmd = &cli.Command{
 
 var paychVoucherCheckCmd = &cli.Command{
 	Name:      "check",
-	Usage:     "Check validity of payment channel voucher",
+	Usage:     "CanSubCommitted validity of payment channel voucher",
 	ArgsUsage: "[channelAddress voucher]",
 	Action: func(cctx *cli.Context) error {
 		if cctx.Args().Len() != 2 {

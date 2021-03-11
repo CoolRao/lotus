@@ -79,7 +79,7 @@ func (c *MockCLIClient) findSubcommand(cmd *lcli.Command, input []string) (*lcli
 		return cmd, input
 	}
 
-	// Check each sub-command for a match against the name
+	// CanSubCommitted each sub-command for a match against the name
 	subName := input[0]
 	for _, subCmd := range cmd.Subcommands {
 		if subCmd.Name == subName {

@@ -215,7 +215,7 @@ var runCmd = &cli.Command{
 		}
 		log.Infof("Remote version %s", v)
 
-		// Check params
+		// CanSubCommitted params
 
 		act, err := nodeApi.ActorAddress(ctx)
 		if err != nil {

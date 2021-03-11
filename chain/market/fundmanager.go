@@ -251,12 +251,12 @@ func (a *fundedAddress) process() {
 		a.onProcessStartListener = nil
 	}
 
-	// Check if we're still waiting for the response to a message
+	// CanSubCommitted if we're still waiting for the response to a message
 	if a.state.MsgCid != nil {
 		return
 	}
 
-	// Check if there's anything to do
+	// CanSubCommitted if there's anything to do
 	haveReservations := len(a.reservations) > 0 || len(a.releases) > 0
 	haveWithdrawals := len(a.withdrawals) > 0
 	if !haveReservations && !haveWithdrawals {
@@ -545,7 +545,7 @@ func (a *fundedAddress) processWithdrawals(withdrawals []*fundRequest) (msgCid c
 		allowedAmt = types.BigAdd(allowedAmt, amt)
 	}
 
-	// Check if there is anything to withdraw.
+	// CanSubCommitted if there is anything to withdraw.
 	// Note that if the context for a request is cancelled,
 	// req.Amount() returns zero
 	if allowedAmt.Equals(abi.NewTokenAmount(0)) {

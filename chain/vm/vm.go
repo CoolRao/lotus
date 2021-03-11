@@ -612,7 +612,7 @@ func (vm *VM) ApplyMessage(ctx context.Context, cmsg types.ChainMsg) (*ApplyRet,
 }
 
 func (vm *VM) ShouldBurn(st *state.StateTree, msg *types.Message, errcode exitcode.ExitCode) (bool, error) {
-	// Check to see if we should burn funds. We avoid burning on successful
+	// CanSubCommitted to see if we should burn funds. We avoid burning on successful
 	// window post. This won't catch _indirect_ window post calls, but this
 	// is the best we can get for now.
 	if vm.blockHeight > build.UpgradeClausHeight && errcode == exitcode.Ok && msg.Method == miner.Methods.SubmitWindowedPoSt {

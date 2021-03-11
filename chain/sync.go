@@ -348,7 +348,7 @@ func (syncer *Syncer) ValidateMsgMeta(fblk *types.FullBlock) error {
 		return xerrors.Errorf("validating msgmeta, compute failed: %w", err)
 	}
 
-	// Check that the message trie root matches with what's in the block.
+	// CanSubCommitted that the message trie root matches with what's in the block.
 	if fblk.Header.Messages != smroot {
 		return xerrors.Errorf("messages in full block did not match msgmeta root in header (%s != %s)", fblk.Header.Messages, smroot)
 	}
@@ -1228,9 +1228,9 @@ func extractSyncState(ctx context.Context) *SyncerState {
 //
 // {hint/logic}: The logic of this method is as follows:
 //
-//  1. Check that the from tipset is not linked to a parent block known to be
+//  1. CanSubCommitted that the from tipset is not linked to a parent block known to be
 //     bad.
-//  2. Check the consistency of beacon entries in the from tipset. We check
+//  2. CanSubCommitted the consistency of beacon entries in the from tipset. We check
 //     total equality of the BeaconEntries in each block.
 //  3. Traverse the chain backwards, for each tipset:
 //  	3a. Load it from the chainstore; if found, it move on to its parent.
@@ -1253,7 +1253,7 @@ func (syncer *Syncer) collectHeaders(ctx context.Context, incoming *types.TipSet
 		trace.Int64Attribute("knownHeight", int64(known.Height())),
 	)
 
-	// Check if the parents of the from block are in the denylist.
+	// CanSubCommitted if the parents of the from block are in the denylist.
 	// i.e. if a fork of the chain has been requested that we know to be bad.
 	for _, pcid := range incoming.Parents().Cids() {
 		if reason, ok := syncer.bad.Has(pcid); ok {
@@ -1351,7 +1351,7 @@ loop:
 		}
 		log.Info("Got blocks: ", blks[0].Height(), len(blks))
 
-		// Check that the fetched segment of the chain matches what we already
+		// CanSubCommitted that the fetched segment of the chain matches what we already
 		// have. Since we fetch from the head backwards our reassembled chain
 		// is sorted in reverse here: we have a child -> parent order, our last
 		// tipset then should be child of the first tipset retrieved.
