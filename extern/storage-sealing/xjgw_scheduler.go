@@ -20,21 +20,22 @@ import (
 var GwDebug = false
 
 func sectorPreCommitExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+	getTicketEpoch := miner3.ChainFinality + sector.TicketEpoch
+	log.Warnf("%v sectorNumber: %v ,preCommitExpectExpired: currentEpoch： %v ,getTicketEpoch: %v , TicketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, epoch, getTicketEpoch, sector.TicketEpoch)
 	if GwDebug {
-		log.Debugf("%v preCommitExpectExpired: currentEpoch： %v ,TicketEpock: %v ", GwLogFilterFlag, epoch, sector.TicketEpoch)
-		return epoch-sector.TicketEpoch > 100+miner3.ChainFinality
+		return epoch-getTicketEpoch > 100
 	}
 	// todo maybe more precise
-	return epoch-sector.TicketEpoch > builtin0.EpochsInDay+miner3.ChainFinality-500
+	return epoch-getTicketEpoch > builtin0.EpochsInDay-500
 }
 
-func sectorProveCommitExpectExpired(sector SectorInfo, epoch abi.ChainEpoch) bool {
+func sectorProveCommitExpectExpired(sector SectorInfo, epoch, preCommitEpoch abi.ChainEpoch) bool {
+	log.Warnf("%v  sectorNumber: %v , proveCommitExpectExpired: currentEpoch： %v ,PreCommitEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, epoch, preCommitEpoch)
 	if GwDebug {
-		log.Debugf("%v proveCommitExpectExpired: currentEpoch： %v ,PreCommitEpoch: %v ", GwLogFilterFlag, epoch, sector.PreCommitEpoch)
-		return epoch-sector.PreCommitEpoch > 100+miner3.ChainFinality
+		return epoch-preCommitEpoch > 250
 	}
 	// todo,about 5 hour
-	return epoch-sector.PreCommitEpoch > builtin0.EpochsInDay-500
+	return epoch-preCommitEpoch > builtin0.EpochsInDay-500
 
 }
 
@@ -44,13 +45,15 @@ PreCommit 提交处理
 	第一个代表：当期gas费率满足要求可以提交
 	第二个代表：扇区即将到期，必须进行处理
 */
+
+// todo 
 func LoopPreCommitCheckGas(sector SectorInfo) (bool, bool) {
 	count := 1
 	for {
 		if GwSchedulerManger.CanSubCommitted() {
 			return true, false
 		}
-		expectExpired := sectorPreCommitExpectExpired(sector, GwSchedulerManger.currentEpoch)
+		expectExpired := sectorPreCommitExpectExpired(sector, GwSchedulerManger.getCurrentEpoch())
 		if expectExpired {
 			return false, true
 		}
@@ -71,13 +74,14 @@ ProveCommit  提交处理
 	第二个代表：扇区即将到期，必须进行处理
 */
 
-func LoopProveCommitCheckGas(sector SectorInfo) (bool, bool) {
+// todo
+func LoopProveCommitCheckGas(sector SectorInfo, preCommitEpoch abi.ChainEpoch) (bool, bool) {
 	count := 1
 	for {
 		if GwSchedulerManger.CanSubCommitted() {
 			return true, false
 		}
-		if sectorProveCommitExpectExpired(sector, GwSchedulerManger.currentEpoch) {
+		if sectorProveCommitExpectExpired(sector, GwSchedulerManger.getCurrentEpoch(), preCommitEpoch) {
 			return false, true
 		}
 		if count > builtin0.EpochsInDay {
@@ -97,7 +101,7 @@ type GwSchedulerManager struct {
 	closeSign        chan struct{}
 	switchOpen       bool
 	currentEpoch     abi.ChainEpoch
-	baseFeeLock      sync.Mutex
+	lock             sync.Mutex
 }
 
 var GwSchedulerManger = &GwSchedulerManager{}
@@ -165,10 +169,10 @@ func (m *GwSchedulerManager) runBaseFee() abi.TokenAmount {
 				// todo check api 错误
 				continue
 			}
-			m.baseFeeLock.Lock()
+			m.lock.Lock()
 			m.currentBaseFee = chainHead.MinTicketBlock().ParentBaseFee
 			m.currentEpoch = chainHead.Height()
-			m.baseFeeLock.Unlock()
+			m.lock.Unlock()
 			log.Infof("%v get current BaseFee  %v,currentEpock %v ", GwLogFilterFlag, m.currentBaseFee, m.currentEpoch)
 		case <-m.closeSign:
 			return abi.TokenAmount{}
@@ -176,9 +180,15 @@ func (m *GwSchedulerManager) runBaseFee() abi.TokenAmount {
 	}
 }
 
+func (m *GwSchedulerManager) getCurrentEpoch() abi.ChainEpoch {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.currentEpoch
+}
+
 func (m *GwSchedulerManager) CanSubCommitted() bool {
-	m.baseFeeLock.Lock()
-	defer m.baseFeeLock.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	if !m.switchOpen {
 		return true
 	}
@@ -242,9 +252,9 @@ func (m *GwSchedulerManager) ConfigThresholdBaseFeeHandler(writer http.ResponseW
 		Response(writer, StatusFail, fmt.Sprintf("request param is error please config request data  %v ", err), nil)
 		return
 	}
-	m.baseFeeLock.Lock()
+	m.lock.Lock()
 	m.thresholdBaseFee = baseFee
-	m.baseFeeLock.Unlock()
+	m.lock.Unlock()
 	log.Infof("%v config ThresholdBaseFee is success,value is %v ", GwLogFilterFlag, m.thresholdBaseFee)
 	Response(writer, StatusOK, fmt.Sprintf("success  current thresholdBaseFee is %v ", m.thresholdBaseFee), nil)
 

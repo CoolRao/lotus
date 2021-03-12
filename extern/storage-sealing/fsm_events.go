@@ -143,7 +143,6 @@ type SectorPreCommitLanded struct {
 
 func (evt SectorPreCommitLanded) apply(si *SectorInfo) {
 	si.PreCommitTipSet = evt.TipSet
-	si.PreCommitEpoch = evt.PreCommitEpoch
 }
 
 type SectorSealPreCommit1Failed struct{ error }
@@ -180,8 +179,8 @@ func (evt SectorPreCommitted) apply(state *SectorInfo) {
 }
 
 type SectorSeedReady struct {
-	SeedValue abi.InteractiveSealRandomness
-	SeedEpoch abi.ChainEpoch
+	SeedValue      abi.InteractiveSealRandomness
+	SeedEpoch      abi.ChainEpoch
 }
 
 func (evt SectorSeedReady) apply(state *SectorInfo) {

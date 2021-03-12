@@ -197,7 +197,6 @@ func (m *Sealing) handlePreCommitting(ctx statemachine.Context, sector SectorInf
 		}
 	}
 
-
 	log.Infof("%v sector can submit preCommit,sectorNumner: %v ,ticketEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
 
 	tok, height, err := m.api.ChainHead(ctx.Context())
@@ -328,7 +327,7 @@ func (m *Sealing) handlePreCommitWait(ctx statemachine.Context, sector SectorInf
 
 	log.Info("precommit message landed on chain: ", sector.SectorNumber)
 
-	return ctx.Send(SectorPreCommitLanded{TipSet: mw.TipSetTok, PreCommitEpoch: mw.Height})
+	return ctx.Send(SectorPreCommitLanded{TipSet: mw.TipSetTok})
 }
 
 func (m *Sealing) handleWaitSeed(ctx statemachine.Context, sector SectorInfo) error {
@@ -427,20 +426,6 @@ func (m *Sealing) handleCommitting(ctx statemachine.Context, sector SectorInfo) 
 }
 
 func (m *Sealing) handleSubmitCommit(ctx statemachine.Context, sector SectorInfo) error {
-	canSubmit, willExpired := LoopProveCommitCheckGas(sector)
-	if !canSubmit {
-		if willExpired {
-			// todo
-
-			log.Infof("%v sector proveCommit ticketEpock will expired: sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
-		} else {
-			// todo
-
-			log.Infof("%v sector proveCommit, can not subimt, other error, sectorNumber %v,ticketEpock: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
-		}
-	}
-	log.Infof("%v sector can submit proveCommit,sectorNumner: %v ,ticketEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, sector.TicketEpoch)
-
 	tok, _, err := m.api.ChainHead(ctx.Context())
 	if err != nil {
 		log.Errorf("handleCommitting: api error, not proceeding: %+v", err)
@@ -474,6 +459,21 @@ func (m *Sealing) handleSubmitCommit(ctx statemachine.Context, sector SectorInfo
 	if pci == nil {
 		return ctx.Send(SectorCommitFailed{error: xerrors.Errorf("precommit info not found on chain")})
 	}
+
+	// blocking
+	canSubmit, willExpired := LoopProveCommitCheckGas(sector, pci.PreCommitEpoch)
+	if !canSubmit {
+		if willExpired {
+			// todo
+
+			log.Infof("%v sector proveCommit preCommitEpoch will expired: sectorNumber %v,preCommitEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, pci.PreCommitEpoch)
+		} else {
+			// todo
+
+			log.Infof("%v sector proveCommit, can not subimt, other error, sectorNumber %v,preCommitEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, pci.PreCommitEpoch)
+		}
+	}
+	log.Infof("%v sector  submit proveCommit,sectorNumner: %v ,preCommitEpoch: %v ", GwLogFilterFlag, sector.SectorNumber, pci.PreCommitEpoch)
 
 	collateral, err := m.api.StateMinerInitialPledgeCollateral(ctx.Context(), m.maddr, pci.Info, tok)
 	if err != nil {

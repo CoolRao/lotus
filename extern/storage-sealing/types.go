@@ -88,7 +88,6 @@ type SectorInfo struct {
 	PreCommitDeposit big.Int
 	PreCommitMessage *cid.Cid
 	PreCommitTipSet  TipSetToken
-	PreCommitEpoch   abi.ChainEpoch
 	
 	PreCommit2Fails  uint64
 
