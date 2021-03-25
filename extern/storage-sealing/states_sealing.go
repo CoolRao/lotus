@@ -153,7 +153,10 @@ func (m *Sealing) handlePreCommit1(ctx statemachine.Context, sector SectorInfo) 
 
 	pc1o, err := m.sealer.SealPreCommit1(sector.sealingCtx(ctx.Context()), m.minerSector(sector.SectorType, sector.SectorNumber), sector.TicketValue, sector.pieceInfos())
 	if err != nil {
-		return ctx.Send(SectorSealPreCommit1Failed{xerrors.Errorf("seal pre commit(1) failed: %w", err)})
+		//return ctx.Send(SectorSealPreCommit1Failed{xerrors.Errorf("seal pre commit(1) failed: %w", err)})
+		// p1 失败 直接 removed
+		log.Errorf("xjgw: secotrNumber %v , sealPreCommit1 fail ,error: %v ", sector.SectorNumber, err)
+		return ctx.Send(SectorRemove{})
 	}
 
 	return ctx.Send(SectorPreCommit1{
@@ -164,11 +167,15 @@ func (m *Sealing) handlePreCommit1(ctx statemachine.Context, sector SectorInfo) 
 func (m *Sealing) handlePreCommit2(ctx statemachine.Context, sector SectorInfo) error {
 	cids, err := m.sealer.SealPreCommit2(sector.sealingCtx(ctx.Context()), m.minerSector(sector.SectorType, sector.SectorNumber), sector.PreCommit1Out)
 	if err != nil {
-		return ctx.Send(SectorSealPreCommit2Failed{xerrors.Errorf("seal pre commit(2) failed: %w", err)})
+		//return ctx.Send(SectorSealPreCommit2Failed{xerrors.Errorf("seal pre commit(2) failed: %w", err)})
+		log.Errorf("xjgw: secotrNumber %v , sealPreCommit2 fail ,error: %v ", sector.SectorNumber, err)
+		return ctx.Send(SectorRemove{})
 	}
 
 	if cids.Unsealed == cid.Undef {
-		return ctx.Send(SectorSealPreCommit1Failed{xerrors.Errorf("seal pre commit(2) returned undefined CommD")})
+		//return ctx.Send(SectorSealPreCommit1Failed{xerrors.Errorf("seal pre commit(2) returned undefined CommD")})
+		log.Errorf("xjgw: secotrNumber %v , sealPreCommit2 fail error sealCid ,error: %v ", sector.SectorNumber, err)
+		return ctx.Send(SectorRemove{})
 	}
 
 	return ctx.Send(SectorPreCommit2{

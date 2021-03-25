@@ -356,6 +356,9 @@ func (m *Manager) AddPiece(ctx context.Context, sector storage.SectorRef, existi
 }
 
 func (m *Manager) SealPreCommit1(ctx context.Context, sector storage.SectorRef, ticket abi.SealRandomness, pieces []abi.PieceInfo) (out storage.PreCommit1Out, err error) {
+	// just test
+	log.Errorf("xjgw: test sealPreCommit1 manaual fail ")
+	return nil, xerrors.Errorf("xjgw: test sealPreCommit1 manaual fail")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
